@@ -29,3 +29,4 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 The API will run at [http://localhost:8000](http://localhost:8000).
+ok.
