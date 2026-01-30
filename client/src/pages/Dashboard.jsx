@@ -121,7 +121,11 @@ const Dashboard = () => {
             {!loading && searched && (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {candidates.map(candidate => (
-                        <div key={candidate.id} className="glass-panel p-6 hover:border-primary/50 transition-colors cursor-pointer group flex flex-col">
+                        <div
+                            key={candidate.id}
+                            onClick={() => window.open(candidate.linkedin, '_blank')}
+                            className="glass-panel p-6 hover:border-primary/50 transition-colors cursor-pointer group flex flex-col"
+                        >
 
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
@@ -158,7 +162,13 @@ const Dashboard = () => {
                                         {candidate.verified_badge && <span className="text-[10px] text-blue-400 flex items-center gap-1">Via {candidate.verified_badge.platform}</span>}
                                     </div>
                                 </div>
-                                <a href={candidate.link} target="_blank" rel="noreferrer" className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <a
+                                    href={candidate.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                                >
                                     <Github className="w-5 h-5 text-gray-400" />
                                 </a>
                             </div>

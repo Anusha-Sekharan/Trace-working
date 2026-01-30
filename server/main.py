@@ -138,3 +138,13 @@ async def find_nearby(request: FindNearbyRequest):
         "candidates": results,
         "message": f"Showing {request.skill or 'skilled'} developers near {location}"
     }
+
+class ChatRequest(BaseModel):
+    history: list[dict]
+
+@app.post("/api/chat")
+async def chat_endpoint(request: ChatRequest):
+    from ai_engine import chat_with_assistant
+    # Response is now a dictionary {type, content, data}
+    response = await chat_with_assistant(request.history)
+    return {"response": response}

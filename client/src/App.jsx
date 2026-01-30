@@ -7,6 +7,8 @@ import SearchPage from './pages/SearchPage';
 import Dashboard from './pages/Dashboard';
 import InterviewRoom from './pages/InterviewRoom';
 
+import ChatAssistant from './components/ChatAssistant';
+
 function App() {
   return (
     <Router>
@@ -28,6 +30,9 @@ function App() {
             <Route path="/interview/:sessionId" element={<InterviewRoom />} />
           </Routes>
         </div>
+
+        {/* Global Chat Assistant */}
+        <ChatAssistant />
       </div>
     </Router>
   );

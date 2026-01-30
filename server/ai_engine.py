@@ -83,3 +83,57 @@ def generate_mock_candidates(skill, location, count=3):
                 "image": f"https://api.dicebear.com/7.x/avataaars/svg?seed=AI"
             }
         ]
+
+from integrations import search_candidates
+
+async def chat_with_assistant(history):
+    """
+    Chat with the AI assistant using Ollama.
+    Supports tool calling for search.
+    """
+    system_prompt = """
+    You are Trace, an expert AI Talent Acquisition Assistant.
+    
+    TOOL USE:
+    If the user asks to find, search, or look for candidates/people, you MUST reply with exactly:
+    SEARCH: <search_terms>
+    
+    Example:
+    User: "Find me a React developer in London"
+    You: SEARCH: React developer London
+    
+    For other queries, just answer helpfuly.
+    Keep responses concise.
+    """
+    
+    messages = [{'role': 'system', 'content': system_prompt}] + history
+    
+    try:
+        # Use sync client for now as python-ollama is sync, wrap if needed but blocking is fine for local
+        response = ollama.chat(model='llama3.2:3b', messages=messages)
+        content = response['message']['content'].strip()
+        
+        if content.startswith("SEARCH:"):
+            query = content.replace("SEARCH:", "").strip()
+            # Perform the search
+            candidates = await search_candidates(query)
+            
+            return {
+                "type": "search_results",
+                "content": f"I've found top candidates for '{query}'.",
+                "data": candidates
+            }
+        else:
+            return {
+                "type": "text",
+                "content": content,
+                "data": None
+            }
+            
+    except Exception as e:
+        print(f"Chat Error: {e}")
+        return {
+            "type": "text",
+            "content": "I'm having trouble connecting to my brain right now.",
+            "data": None
+        }
