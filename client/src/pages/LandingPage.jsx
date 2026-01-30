@@ -27,7 +27,7 @@ const LandingPage = () => {
                         <Link to="/dashboard" className="px-8 py-4 bg-primary hover:bg-primary/90 rounded-xl font-bold text-lg shadow-lg shadow-primary/25 transition-all flex items-center gap-2">
                             Start Matching <ArrowRight className="w-5 h-5" />
                         </Link>
-                        <button className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all">
+                        <button className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all text-white">
                             For Recruiters
                         </button>
                     </div>
@@ -57,8 +57,8 @@ const LandingPage = () => {
 };
 
 const FeatureCard = ({ icon, title, desc }) => (
-    <div className="glass-panel p-8 hover:transform hover:-translate-y-2 transition-all duration-300">
-        <div className="bg-white/5 w-16 h-16 rounded-lg flex items-center justify-center mb-6">
+    <div className="glass-panel p-8 hover:transform hover:-translate-y-2 transition-all duration-300 group">
+        <div className="bg-white/5 w-16 h-16 rounded-lg flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
             {icon}
         </div>
         <h3 className="text-xl font-bold mb-3">{title}</h3>

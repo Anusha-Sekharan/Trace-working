@@ -18,7 +18,7 @@ const InterviewRoom = () => {
                     <p className="text-xs text-gray-400">Session ID: {sessionId || 'DEMO-123'}</p>
                 </div>
                 <div className="flex gap-4">
-                    <div className="bg-dark/50 border border-white/10 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <div className="bg-dark/50 border border-white/10 px-4 py-2 rounded-lg flex items-center gap-2 text-white">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div> Proctoring Active
                     </div>
                     <button className="bg-red-500/20 hover:bg-red-500/30 text-red-500 px-4 py-2 rounded-lg font-semibold border border-red-500/50">
@@ -42,7 +42,7 @@ const InterviewRoom = () => {
                         ))}
                     </div>
                     <div className="p-4 border-t border-white/10 flex gap-2">
-                        <input type="text" placeholder="Type your answer..." className="flex-1 bg-dark rounded-lg border border-white/20 px-3 text-sm focus:border-primary outline-none" />
+                        <input type="text" placeholder="Type your answer..." className="flex-1 bg-dark rounded-lg border border-white/20 px-3 text-sm focus:border-primary outline-none text-white" />
                         <button className="p-2 bg-primary rounded-lg hover:bg-primary/90"><Send className="w-4 h-4" /></button>
                         <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20"><Mic className="w-4 h-4" /></button>
                     </div>

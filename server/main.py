@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import random
-from integrations import search_candidates
+from integrations import search_candidates, get_github_user_details
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -107,3 +107,34 @@ async def search_api(query: str = ""):
         ]
 
     return {"candidates": results}
+
+class FindNearbyRequest(BaseModel):
+    username: str = ""
+    skill: str = ""
+    manual_location: str = None
+
+@app.post("/api/find-nearby")
+async def find_nearby(request: FindNearbyRequest):
+    location = request.manual_location
+
+    # 1. If no manual location, try to get from GitHub
+    if not location and request.username:
+        user_details = await get_github_user_details(request.username)
+        if user_details:
+             location = user_details.get("location")
+    
+    if not location:
+        return {
+            "success": False,
+            "message": "Could not determine location. Please enter it manually or check your GitHub profile."
+        }
+    
+    # 2. Search for candidates near that location
+    results = await search_candidates(request.skill, location=location)
+
+    return {
+        "success": True,
+        "location": location,
+        "candidates": results,
+        "message": f"Showing {request.skill or 'skilled'} developers near {location}"
+    }

@@ -10,8 +10,10 @@ async def fetch_github_users(query, limit=5):
     url = f"https://api.github.com/search/users?q={query}&per_page={limit}"
     
     async with httpx.AsyncClient() as client:
+        print(f"DEBUG: Fetching GitHub users with URL: {url}")
         try:
             resp = await client.get(url, headers={"User-Agent": "TRACE-TeamFinder"})
+            print(f"DEBUG: GitHub API Status: {resp.status_code}")
             if resp.status_code == 200:
                 data = resp.json()
                 users = []
@@ -36,7 +38,31 @@ async def fetch_github_users(query, limit=5):
         except Exception as e:
             print(f"GitHub API Error: {e}")
             return []
-    return []
+
+async def get_github_user_details(username):
+    """
+    Fetches a specific user's detailed profile to get their location.
+    """
+    url = f"https://api.github.com/users/{username}"
+    
+    async with httpx.AsyncClient() as client:
+        print(f"DEBUG: Fetching details for user: {username}")
+        try:
+            resp = await client.get(url, headers={"User-Agent": "TRACE-TeamFinder"})
+            print(f"DEBUG: User Details Status: {resp.status_code}")
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "location": data.get("location"),
+                    "name": data.get("name"),
+                    "bio": data.get("bio"),
+                    "avatar": data.get("avatar_url")
+                }
+        except Exception as e:
+            print(f"Error fetching user details: {e}")
+            return None
+    return None
+
 
 def mock_linkedin_coursera_enrichment(base_speed=0.2):
     """
@@ -59,12 +85,19 @@ def mock_linkedin_coursera_enrichment(base_speed=0.2):
         }
     return None
 
-async def search_candidates(query: str):
+async def search_candidates(query: str, location: str = None):
     """
     Orchestrates the search across "multiple" APIs.
     """
     # 1. Fetch real candidates from GitHub
-    github_candidates = await fetch_github_users(query, limit=6)
+    # Append location to query if provided
+    search_query = query
+    if location:
+        # Quote the location to handle cities with spaces like "New York"
+        search_query += f' location:"{location}"'
+        
+    print(f"DEBUG: Executing search with query: {search_query}")
+    github_candidates = await fetch_github_users(search_query, limit=6)
     
     results = []
     
@@ -83,7 +116,7 @@ async def search_candidates(query: str):
         
         candidate = {
             **user,
-            "role": query.replace("engineer", "").strip().title() + " Engineer" if query else "Software Engineer", # Dynamic role title
+            "role": (query.replace("engineer", "").strip().title() + " Engineer") if query else "Software Engineer", # Dynamic role title
             "skills": [query.split()[0], "Python", "TensorFlow", "Git"] if query else ["Coding", "Design"], # Infer skills
             "score": final_score,
             "verified_badge": enrichment,

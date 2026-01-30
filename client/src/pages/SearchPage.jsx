@@ -72,7 +72,7 @@ const SearchPage = () => {
                             transition-all duration-300 ${isFocused ? 'shadow-[0_0_40px_-10px_rgba(var(--primary-rgb),0.5)] scale-[1.01]' : 'shadow-lg'}
                         `}
                     >
-                        <div className="relative bg-black/80 backdrop-blur-xl rounded-xl flex items-center p-2">
+                        <div className="relative bg-black/80 backdrop-blur-xl rounded-xl flex items-center p-2 border border-white/10 shadow-lg">
                             <Search className={`w-6 h-6 ml-4 mr-4 transition-colors ${isFocused ? 'text-primary' : 'text-gray-500'}`} />
                             <input
                                 type="text"
