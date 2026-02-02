@@ -134,9 +134,9 @@ const ChatAssistant = () => {
 
                                     {/* Render Search Results if present */}
                                     {msg.type === 'search_results' && msg.data && (
-                                        <div className="mt-4 w-full flex space-x-4 overflow-x-auto pb-4 px-1 snap-x no-scrollbar">
+                                        <div className="mt-4 w-full flex flex-col space-y-4 pb-4 px-1">
                                             {msg.data.map((candidate) => (
-                                                <div key={candidate.id} className="min-w-[260px] max-w-[260px] snap-center bg-gray-900/80 border border-white/10 rounded-xl p-4 shadow-xl hover:border-blue-500/50 transition-colors flex flex-col items-center text-center space-y-3 relative group">
+                                                <div key={candidate.id} className="w-full bg-gray-900/80 border border-white/10 rounded-xl p-4 shadow-xl hover:border-blue-500/50 transition-colors flex flex-col items-center text-center space-y-3 relative group">
 
                                                     {/* Verified Badge */}
                                                     {candidate.verified && (
