@@ -4,3 +4,5 @@ pydantic
 python-multipart
 httpx
 ollama
+python-jose[cryptography]
+passlib[bcrypt]

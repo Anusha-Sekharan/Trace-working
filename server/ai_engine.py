@@ -97,8 +97,15 @@ async def chat_with_assistant(history):
     TOOL USE:
     If the user asks to find, search, or look for candidates/people, you MUST reply with exactly:
     SEARCH: <search_terms>
+
+    If the user says the previous results are not good, or asks for "next", "more", or "others", you MUST reply with exactly:
+    SEARCH_NEXT: <original_search_terms>
     
     Example:
+    User: "Find me a React developer in London"
+    You: SEARCH: React developer London
+    User: "These aren't good"
+    You: SEARCH_NEXT: React developer London
     User: "Find me a React developer in London"
     You: SEARCH: React developer London
     
@@ -108,6 +115,7 @@ async def chat_with_assistant(history):
     
     messages = [{'role': 'system', 'content': system_prompt}] + history
     
+            
     try:
         # Use sync client for now as python-ollama is sync, wrap if needed but blocking is fine for local
         response = ollama.chat(model='llama3.2:3b', messages=messages)
@@ -115,14 +123,33 @@ async def chat_with_assistant(history):
         
         if content.startswith("SEARCH:"):
             query = content.replace("SEARCH:", "").strip()
-            # Perform the search
-            candidates = await search_candidates(query)
+            # Perform the search (New Search)
+            candidates = await search_candidates(query, load_more=False)
             
             return {
                 "type": "search_results",
                 "content": f"I've found top candidates for '{query}'.",
                 "data": candidates
             }
+            
+        elif content.startswith("SEARCH_NEXT:"):
+            query = content.replace("SEARCH_NEXT:", "").strip()
+            # Perform the search (Load More)
+            candidates = await search_candidates(query, load_more=True)
+            
+            if not candidates:
+                return {
+                    "type": "text",
+                    "content": "I couldn't find any more candidates matching that description.",
+                    "data": None
+                }
+            
+            return {
+                "type": "search_results",
+                "content": "Here are some other candidates that might be a better fit.",
+                "data": candidates
+            }
+            
         else:
             return {
                 "type": "text",

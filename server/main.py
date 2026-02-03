@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import random
 from integrations import search_candidates, get_github_user_details
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from datetime import timedelta
+from auth import Token, User, verify_password, create_access_token, get_password_hash
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -138,6 +142,42 @@ async def find_nearby(request: FindNearbyRequest):
         "candidates": results,
         "message": f"Showing {request.skill or 'skilled'} developers near {location}"
     }
+
+# Auth Logic
+fake_users_db = {
+    "demo@trace.ai": {
+        "username": "demo@trace.ai",
+        "full_name": "Demo User",
+        "email": "demo@trace.ai",
+        "hashed_password": get_password_hash("password123"),
+        "disabled": False,
+    }
+}
+
+def get_user(db, username: str):
+    if username in db:
+        user_dict = db[username]
+        return type('UserInDB', (object,), user_dict)
+    return None
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/login", response_model=Token)
+async def login_for_access_token(form_data: LoginRequest):
+    user = get_user(fake_users_db, form_data.email)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 class ChatRequest(BaseModel):
     history: list[dict]

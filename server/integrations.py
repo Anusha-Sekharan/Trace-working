@@ -85,24 +85,53 @@ def mock_linkedin_coursera_enrichment(base_speed=0.2):
         }
     return None
 
-async def search_candidates(query: str, location: str = None):
+
+# In-memory cache for search sessions
+# Structure: { "query_string": { "candidates": [], "pointer": 0 } }
+SEARCH_SESSION_CACHE = {}
+
+async def search_candidates(query: str, location: str = None, load_more: bool = False):
     """
-    Orchestrates the search across "multiple" APIs.
+    Orchestrates the search across "multiple" APIs with pagination support.
     """
-    # 1. Fetch real candidates from GitHub
-    # Append location to query if provided
+    # 1. Construct a unique key for the search session
     search_query = query
     if location:
-        # Quote the location to handle cities with spaces like "New York"
         search_query += f' location:"{location}"'
+    
+    cache_key = search_query.lower().strip()
+    
+    # 2. Check cache if loading more
+    if load_more and cache_key in SEARCH_SESSION_CACHE:
+        session = SEARCH_SESSION_CACHE[cache_key]
+        pointer = session["pointer"]
+        candidates = session["candidates"]
         
+        # Get next batch
+        next_batch = candidates[pointer : pointer + 3]
+        
+        # Update pointer
+        # If we reached the end, we might want to wrap around or just stay at the end
+        # For this demo, let's just cap it.
+        session["pointer"] = min(len(candidates), pointer + 3)
+        
+        if not next_batch:
+             # Try to generate/fetch fresh ones if we ran out? 
+             # For now, just return empty implies "no more results"
+             pass
+             
+        return next_batch
+
+    # 3. New Search (or cache miss on load_more)
     print(f"DEBUG: Executing search with query: {search_query}")
-    github_candidates = await fetch_github_users(search_query, limit=6)
+    
+    # INCREASE FETCH LIMIT to build a buffer for "Next" requests
+    github_candidates = await fetch_github_users(search_query, limit=15)
     
     results = []
     
     for user in github_candidates:
-        # 2. Enrich with mock data from other platforms "cross-referenced"
+        # Enrich with mock data from other platforms "cross-referenced"
         enrichment = mock_linkedin_coursera_enrichment()
         
         # Calculate a "TRACE Score"
@@ -127,5 +156,11 @@ async def search_candidates(query: str, location: str = None):
     
     # Sort by score descending
     results.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Save to Cache
+    SEARCH_SESSION_CACHE[cache_key] = {
+        "candidates": results,
+        "pointer": 3 # We are about to return the first 3
+    }
     
     return results[:3] # Return top 3 as requested

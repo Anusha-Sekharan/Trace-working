@@ -147,11 +147,19 @@ const ChatAssistant = () => {
                                                         </div>
                                                     )}
 
-                                                    <img
-                                                        src={candidate.image}
-                                                        alt={candidate.name}
-                                                        className="w-16 h-16 rounded-full border-2 border-blue-500 p-0.5 object-cover"
-                                                    />
+                                                    <a
+                                                        href={candidate.linkedin || "#"}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="cursor-pointer hover:scale-105 transition-transform duration-200"
+                                                        title="View LinkedIn Profile"
+                                                    >
+                                                        <img
+                                                            src={candidate.image}
+                                                            alt={candidate.name}
+                                                            className="w-16 h-16 rounded-full border-2 border-blue-500 p-0.5 object-cover"
+                                                        />
+                                                    </a>
                                                     <div>
                                                         <h4 className="text-white font-semibold">{candidate.name}</h4>
                                                         <p className="text-xs text-blue-400 font-medium">{candidate.role}</p>
