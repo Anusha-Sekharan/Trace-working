@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Activity, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -41,6 +42,24 @@ const Login = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/login/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: credentialResponse.credential }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Google Login failed');
+
+      // For now, we use a placeholder for email since we don't decode the JWT here
+      login(data.access_token, "Google User");
+      navigate('/search');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-dark">
       {/* Background Ambience */}
@@ -71,6 +90,24 @@ const Login = () => {
             </h2>
             <p className="text-gray-400">Enter your credentials to access the workspace</p>
             <p className="text-xs text-gray-500 mt-2">(Use demo@trace.ai / password123)</p>
+          </div>
+
+          <div className="flex justify-center mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google Login Failed')}
+              theme="filled_black"
+              shape="pill"
+            />
+          </div>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-[#0a0a0a] text-gray-500">Or continue with email</span>
+            </div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">

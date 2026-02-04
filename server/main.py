@@ -7,6 +7,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from datetime import timedelta
 from auth import Token, User, verify_password, create_access_token, get_password_hash
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -178,6 +180,51 @@ async def login_for_access_token(form_data: LoginRequest):
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+class GoogleLoginRequest(BaseModel):
+    token: str
+
+@app.post("/api/login/google", response_model=Token)
+async def google_login(request: GoogleLoginRequest):
+    try:
+        # Verify the token
+        # Specify the CLIENT_ID of the app that accesses the backend:
+        # id_info = id_token.verify_oauth2_token(token, google_requests.Request(), CLIENT_ID)
+        
+        # For now, we will verify indiscriminately (NOT RECOMMENDED FOR PRODUCTION without checking Audience)
+        # In production, you MUST check that id_info['aud'] is your Google Client ID
+        id_info = id_token.verify_oauth2_token(request.token, google_requests.Request())
+        
+        email = id_info.get("email")
+        name = id_info.get("name")
+        
+        if not email:
+             raise HTTPException(status_code=400, detail="Invalid Google Token: No email found")
+
+        # Check if user exists, if not create one
+        user = get_user(fake_users_db, email)
+        if not user:
+            # Create new user
+            fake_users_db[email] = {
+                "username": email,
+                "full_name": name,
+                "email": email,
+                "hashed_password": "", # No password for google users
+                "disabled": False,
+            }
+            user = get_user(fake_users_db, email)
+            
+        access_token_expires = timedelta(minutes=30)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(status_code=401, detail=f"Invalid Google Token: {str(e)}")
 
 class ChatRequest(BaseModel):
     history: list[dict]

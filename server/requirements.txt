@@ -6,3 +6,5 @@ httpx
 ollama
 python-jose[cryptography]
 passlib[bcrypt]
+google-auth
+requests
