@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import SearchPage from './pages/SearchPage';
 import Dashboard from './pages/Dashboard';
 import InterviewRoom from './pages/InterviewRoom';
+import Profile from './pages/Profile';
 
 import ChatAssistant from './components/ChatAssistant';
 
@@ -31,6 +32,7 @@ function App() {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/interview/:sessionId" element={<InterviewRoom />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </div>
 

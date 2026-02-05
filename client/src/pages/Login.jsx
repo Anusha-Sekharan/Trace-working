@@ -33,7 +33,7 @@ const Login = () => {
         throw new Error(data.detail || 'Login failed');
       }
 
-      login(data.access_token, email);
+      login(data.access_token, data.user);
       navigate('/search');
     } catch (err) {
       setError(err.message);
@@ -52,8 +52,8 @@ const Login = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Google Login failed');
 
-      // For now, we use a placeholder for email since we don't decode the JWT here
-      login(data.access_token, "Google User");
+      // data.user contains { username, email, full_name, picture } from backend
+      login(data.access_token, data.user);
       navigate('/search');
     } catch (err) {
       setError(err.message);

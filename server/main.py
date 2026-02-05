@@ -151,6 +151,7 @@ fake_users_db = {
         "username": "demo@trace.ai",
         "full_name": "Demo User",
         "email": "demo@trace.ai",
+        "picture": "",
         "hashed_password": get_password_hash("password123"),
         "disabled": False,
     }
@@ -166,7 +167,12 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-@app.post("/api/login", response_model=Token)
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: User
+
+@app.post("/api/login", response_model=LoginResponse)
 async def login_for_access_token(form_data: LoginRequest):
     user = get_user(fake_users_db, form_data.email)
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -179,14 +185,21 @@ async def login_for_access_token(form_data: LoginRequest):
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Convert UserInDB to User model for response
+    user_response = User(
+        username=user.username, 
+        email=user.email, 
+        full_name=user.full_name,
+        picture=user.picture
+    )
+    return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
 
 
 class GoogleLoginRequest(BaseModel):
     token: str
 
-@app.post("/api/login/google", response_model=Token)
+@app.post("/api/login/google", response_model=LoginResponse)
 async def google_login(request: GoogleLoginRequest):
     try:
         # Verify the token
@@ -199,28 +212,44 @@ async def google_login(request: GoogleLoginRequest):
         
         email = id_info.get("email")
         name = id_info.get("name")
+        picture = id_info.get("picture")
         
         if not email:
              raise HTTPException(status_code=400, detail="Invalid Google Token: No email found")
 
         # Check if user exists, if not create one
-        user = get_user(fake_users_db, email)
-        if not user:
+        user_in_db = get_user(fake_users_db, email)
+        if not user_in_db:
             # Create new user
             fake_users_db[email] = {
                 "username": email,
                 "full_name": name,
                 "email": email,
+                "picture": picture,
                 "hashed_password": "", # No password for google users
                 "disabled": False,
             }
-            user = get_user(fake_users_db, email)
+            user_in_db = get_user(fake_users_db, email)
+        else:
+            # Update user info (like picture) if they log in again
+            # Note: Since get_user returns a dynamic object, we modify the source db directly
+            fake_users_db[email]["picture"] = picture
+            fake_users_db[email]["full_name"] = name
+            user_in_db = get_user(fake_users_db, email)
             
         access_token_expires = timedelta(minutes=30)
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
+            data={"sub": user_in_db.username}, expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        
+        user_response = User(
+            username=user_in_db.username,
+            email=user_in_db.email,
+            full_name=user_in_db.full_name,
+            picture=user_in_db.picture
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer", "user": user_response}
         
     except ValueError as e:
         # Invalid token

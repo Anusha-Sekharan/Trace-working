@@ -39,9 +39,20 @@ const Navbar = () => {
                 <div className="flex items-center space-x-4">
                     {user ? (
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-400 hidden sm:block">
-                                Hello, {user.email.split('@')[0]}
-                            </span>
+                            <Link to="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                <span className="text-sm text-gray-400 hidden sm:block">
+                                    Hello, {user.full_name || user.email.split('@')[0]}
+                                </span>
+                                <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden">
+                                    {user.picture ? (
+                                        <img src={user.picture} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center font-bold text-white text-sm">
+                                            {user.email[0].toUpperCase()}
+                                        </div>
+                                    )}
+                                </div>
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
@@ -49,9 +60,6 @@ const Navbar = () => {
                             >
                                 <LogOut className="w-5 h-5" />
                             </button>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center font-bold text-white text-sm">
-                                {user.email[0].toUpperCase()}
-                            </div>
                         </div>
                     ) : (
                         <Link to="/login" className="px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/50 hover:bg-primary/30 transition-all font-semibold backdrop-blur-md">

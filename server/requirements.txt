@@ -5,6 +5,6 @@ python-multipart
 httpx
 ollama
 python-jose[cryptography]
-passlib[bcrypt]
+passlib[argon2]
 google-auth
 requests

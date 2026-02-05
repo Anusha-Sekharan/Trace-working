@@ -12,15 +12,21 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem('user');
 
         if (token && storedUser) {
-            setUser({ email: storedUser });
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
+                // Fallback: if stored user is just a plain string (old way)
+                setUser({ email: storedUser });
+            }
         }
         setLoading(false);
     }, []);
 
-    const login = (token, email) => {
+    const login = (token, userData) => {
         localStorage.setItem('token', token);
-        localStorage.setItem('user', email);
-        setUser({ email });
+        // userData is now an object { username, email, full_name, picture }
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
     };
 
     const logout = () => {
