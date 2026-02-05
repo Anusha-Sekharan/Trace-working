@@ -7,6 +7,7 @@ import SearchPage from './pages/SearchPage';
 import Dashboard from './pages/Dashboard';
 import InterviewRoom from './pages/InterviewRoom';
 import Profile from './pages/Profile';
+import Onboarding from './pages/Onboarding';
 
 import ChatAssistant from './components/ChatAssistant';
 
@@ -33,6 +34,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/interview/:sessionId" element={<InterviewRoom />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/onboarding" element={<Onboarding />} />
             </Routes>
           </div>
 

@@ -13,3 +13,5 @@ class User(Base):
     hashed_password = Column(String(255))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     disabled = Column(Boolean, default=False)
+    github_link = Column(String(1024), nullable=True)
+    linkedin_link = Column(String(1024), nullable=True)

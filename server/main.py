@@ -208,6 +208,8 @@ async def login_for_access_token(form_data: LoginRequest, db: Session = Depends(
         email=db_user.email, 
         full_name=db_user.full_name,
         picture=db_user.picture,
+        github_link=db_user.github_link,
+        linkedin_link=db_user.linkedin_link,
         created_at=db_user.created_at
     )
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
@@ -273,6 +275,8 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             email=db_user.email,
             full_name=db_user.full_name,
             picture=db_user.picture,
+            github_link=db_user.github_link,
+            linkedin_link=db_user.linkedin_link,
             created_at=db_user.created_at
         )
         print("DEBUG: Login successful, returning response.")
@@ -286,6 +290,70 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
     except Exception as e:
         print(f"DEBUG: Unexpected Error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+class UpdateProfileRequest(BaseModel):
+    github_link: str = None
+    linkedin_link: str = None
+
+@app.put("/api/user/profile", response_model=User)
+async def update_profile(request: UpdateProfileRequest, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    print(f"DEBUG: Update Profile Request: {request}")
+    # Verify token
+    try:
+        # Quick verify logic as we don't have verify_token exported cleanly, reusing logic
+        # Ideally move verify_token to auth.py and import it
+        # For now, decoding manually as implemented in many tutorials or importing if available
+        # Implementation of get_current_user logic:
+        from jose import jwt, JWTError
+        from auth import SECRET_KEY, ALGORITHM
+        
+        print("DEBUG: Decoding token...")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        print(f"DEBUG: Token Decoded. Username: {username}")
+        if username is None:
+            print("DEBUG: Username missing in token")
+            raise HTTPException(status_code=401, detail="Invalid token")
+            
+    except JWTError as e:
+         print(f"DEBUG: JWT Error: {e}")
+         raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+         print(f"DEBUG: Token verification exception: {e}")
+         raise HTTPException(status_code=401, detail="Token validation failed")
+
+    print(f"DEBUG: Fetching user {username} from DB...")
+    db_user = get_user_by_username(db, username)
+    if not db_user:
+         print("DEBUG: User not found in DB")
+         raise HTTPException(status_code=404, detail="User not found")
+         
+    try:
+        if request.github_link is not None:
+            print(f"DEBUG: Updating GitHub: {request.github_link}")
+            db_user.github_link = request.github_link
+        if request.linkedin_link is not None:
+            print(f"DEBUG: Updating LinkedIn: {request.linkedin_link}")
+            db_user.linkedin_link = request.linkedin_link
+            
+        db.commit()
+        db.refresh(db_user)
+        print("DEBUG: Profile updated successfully in DB")
+    except Exception as e:
+        print(f"DEBUG: Database Error during update: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database Update Failed: {str(e)}")
+    
+    return User(
+        username=db_user.username,
+        email=db_user.email,
+        full_name=db_user.full_name,
+        picture=db_user.picture,
+        github_link=db_user.github_link,
+        linkedin_link=db_user.linkedin_link,
+        created_at=db_user.created_at
+    )
 
 class ChatRequest(BaseModel):
     history: list[dict]

@@ -34,7 +34,12 @@ const Login = () => {
       }
 
       login(data.access_token, data.user);
-      navigate('/search');
+
+      if (!data.user.github_link || !data.user.linkedin_link) {
+        navigate('/onboarding');
+      } else {
+        navigate('/search');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,9 +57,14 @@ const Login = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Google Login failed');
 
-      // data.user contains { username, email, full_name, picture } from backend
+      // data.user contains { username, email, full_name, picture, github_link, linkedin_link }
       login(data.access_token, data.user);
-      navigate('/search');
+
+      if (!data.user.github_link || !data.user.linkedin_link) {
+        navigate('/onboarding');
+      } else {
+        navigate('/search');
+      }
     } catch (err) {
       setError(err.message);
     }
