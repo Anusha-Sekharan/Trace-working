@@ -5,7 +5,7 @@ import random
 from integrations import search_candidates, get_github_user_details
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from datetime import timedelta
+from datetime import datetime, timedelta
 from auth import Token, User, verify_password, create_access_token, get_password_hash
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -145,25 +145,19 @@ async def find_nearby(request: FindNearbyRequest):
         "message": f"Showing {request.skill or 'skilled'} developers near {location}"
     }
 
-# Auth Logic
-from datetime import datetime
-fake_users_db = {
-    "demo@trace.ai": {
-        "username": "demo@trace.ai",
-        "full_name": "Demo User",
-        "email": "demo@trace.ai",
-        "picture": "",
-        "created_at": datetime.utcnow(),
-        "hashed_password": get_password_hash("password123"),
-        "disabled": False,
-    }
-}
+# Auth Logic with Database
+from sqlalchemy.orm import Session
+import models
+from database import engine, get_db
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return type('UserInDB', (object,), user_dict)
-    return None
+# Create tables
+models.Base.metadata.create_all(bind=engine)
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def get_user_by_username(db: Session, username: str):
+    return db.query(models.User).filter(models.User.username == username).first()
 
 class LoginRequest(BaseModel):
     email: str
@@ -172,28 +166,49 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str
-    user: User
+    user: User  # Pydantic User model from auth.py
 
 @app.post("/api/login", response_model=LoginResponse)
-async def login_for_access_token(form_data: LoginRequest):
-    user = get_user(fake_users_db, form_data.email)
-    if not user or not verify_password(form_data.password, user.hashed_password):
+async def login_for_access_token(form_data: LoginRequest, db: Session = Depends(get_db)):
+    # Check DB
+    db_user = get_user_by_email(db, form_data.email)
+    
+    # Fallback to demo user if not in DB (for smooth transition)
+    if not db_user and form_data.email == "demo@trace.ai" and form_data.password == "password123":
+        # Create demo user in DB if missing
+        hashed = get_password_hash("password123")
+        db_user = models.User(
+            username="demo@trace.ai",
+            email="demo@trace.ai",
+            full_name="Demo User",
+            picture="",
+            hashed_password=hashed,
+            created_at=datetime.utcnow(), 
+            disabled=False
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+
+    if not db_user or not verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": db_user.username}, expires_delta=access_token_expires
     )
-    # Convert UserInDB to User model for response
+    
+    # Convert SQLAlchemy model to Pydantic model for response
     user_response = User(
-        username=user.username, 
-        email=user.email, 
-        full_name=user.full_name,
-        picture=user.picture,
-        created_at=getattr(user, "created_at", None)
+        username=db_user.username, 
+        email=db_user.email, 
+        full_name=db_user.full_name,
+        picture=db_user.picture,
+        created_at=db_user.created_at
     )
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
@@ -203,68 +218,74 @@ class GoogleLoginRequest(BaseModel):
     token: str
 
 @app.post("/api/login/google", response_model=LoginResponse)
-async def google_login(request: GoogleLoginRequest):
+async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
+    print(f"DEBUG: Google Login Attempt with token: {request.token[:20]}...")
     try:
         # Verify the token
-        # Specify the CLIENT_ID of the app that accesses the backend:
-        # id_info = id_token.verify_oauth2_token(token, google_requests.Request(), CLIENT_ID)
-        
-        # For now, we will verify indiscriminately (NOT RECOMMENDED FOR PRODUCTION without checking Audience)
-        # In production, you MUST check that id_info['aud'] is your Google Client ID
         id_info = id_token.verify_oauth2_token(request.token, google_requests.Request())
+        print(f"DEBUG: Token Verified. Info keys: {id_info.keys()}")
         
         email = id_info.get("email")
         name = id_info.get("name")
         picture = id_info.get("picture")
+        print(f"DEBUG: Extracted - Email: {email}, Name: {name}, Picture: {picture}")
         
         if not email:
+             print("DEBUG: No email found in token")
              raise HTTPException(status_code=400, detail="Invalid Google Token: No email found")
 
-        # Check if user exists, if not create one
-        user_in_db = get_user(fake_users_db, email)
-        if not user_in_db:
+        # Check if user exists in DB
+        db_user = get_user_by_email(db, email)
+        print(f"DEBUG: User in DB: {db_user}")
+        
+        if not db_user:
+            print("DEBUG: Creating new user...")
             # Create new user
-            from datetime import datetime
-            fake_users_db[email] = {
-                "username": email,
-                "full_name": name,
-                "email": email,
-                "picture": picture,
-                "created_at": datetime.utcnow(),
-                "hashed_password": "", # No password for google users
-                "disabled": False,
-            }
-            user_in_db = get_user(fake_users_db, email)
+            db_user = models.User(
+                username=email,
+                full_name=name,
+                email=email,
+                picture=picture,
+                hashed_password="", # No password for google users
+                created_at=datetime.utcnow(),
+                disabled=False
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            print("DEBUG: New user created and committed.")
         else:
-            # Update user info (like picture) if they log in again
-            # Note: Since get_user returns a dynamic object, we modify the source db directly
-            fake_users_db[email]["picture"] = picture
-            fake_users_db[email]["full_name"] = name
-            # Preserve existing created_at if it exists
-            if not getattr(user_in_db, "created_at", None):
-                 from datetime import datetime
-                 fake_users_db[email]["created_at"] = datetime.utcnow()
-            
-            user_in_db = get_user(fake_users_db, email)
+            print("DEBUG: Updating existing user...")
+            # Update user info (picture/name)
+            db_user.picture = picture
+            db_user.full_name = name
+            db.commit()
+            db.refresh(db_user)
+            print("DEBUG: User updated.")
             
         access_token_expires = timedelta(minutes=30)
         access_token = create_access_token(
-            data={"sub": user_in_db.username}, expires_delta=access_token_expires
+            data={"sub": db_user.username}, expires_delta=access_token_expires
         )
         
         user_response = User(
-            username=user_in_db.username,
-            email=user_in_db.email,
-            full_name=user_in_db.full_name,
-            picture=user_in_db.picture,
-            created_at=getattr(user_in_db, "created_at", None)
+            username=db_user.username,
+            email=db_user.email,
+            full_name=db_user.full_name,
+            picture=db_user.picture,
+            created_at=db_user.created_at
         )
+        print("DEBUG: Login successful, returning response.")
         
         return {"access_token": access_token, "token_type": "bearer", "user": user_response}
         
     except ValueError as e:
         # Invalid token
+        print(f"DEBUG: Token Verification Failed: {e}")
         raise HTTPException(status_code=401, detail=f"Invalid Google Token: {str(e)}")
+    except Exception as e:
+        print(f"DEBUG: Unexpected Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 class ChatRequest(BaseModel):
     history: list[dict]
