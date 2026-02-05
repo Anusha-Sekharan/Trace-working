@@ -80,7 +80,7 @@ const Profile = () => {
                         <div className="text-gray-400 text-sm mb-1">Member Since</div>
                         <div className="text-xl font-semibold text-white flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
-                            2024
+                            {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '2024'}
                         </div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5">

@@ -23,6 +23,7 @@ class User(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     picture: Optional[str] = None
+    created_at: Optional[datetime] = None
     disabled: Optional[bool] = None
 
 class UserInDB(User):

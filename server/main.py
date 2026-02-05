@@ -146,12 +146,14 @@ async def find_nearby(request: FindNearbyRequest):
     }
 
 # Auth Logic
+from datetime import datetime
 fake_users_db = {
     "demo@trace.ai": {
         "username": "demo@trace.ai",
         "full_name": "Demo User",
         "email": "demo@trace.ai",
         "picture": "",
+        "created_at": datetime.utcnow(),
         "hashed_password": get_password_hash("password123"),
         "disabled": False,
     }
@@ -190,7 +192,8 @@ async def login_for_access_token(form_data: LoginRequest):
         username=user.username, 
         email=user.email, 
         full_name=user.full_name,
-        picture=user.picture
+        picture=user.picture,
+        created_at=getattr(user, "created_at", None)
     )
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
@@ -221,11 +224,13 @@ async def google_login(request: GoogleLoginRequest):
         user_in_db = get_user(fake_users_db, email)
         if not user_in_db:
             # Create new user
+            from datetime import datetime
             fake_users_db[email] = {
                 "username": email,
                 "full_name": name,
                 "email": email,
                 "picture": picture,
+                "created_at": datetime.utcnow(),
                 "hashed_password": "", # No password for google users
                 "disabled": False,
             }
@@ -235,6 +240,11 @@ async def google_login(request: GoogleLoginRequest):
             # Note: Since get_user returns a dynamic object, we modify the source db directly
             fake_users_db[email]["picture"] = picture
             fake_users_db[email]["full_name"] = name
+            # Preserve existing created_at if it exists
+            if not getattr(user_in_db, "created_at", None):
+                 from datetime import datetime
+                 fake_users_db[email]["created_at"] = datetime.utcnow()
+            
             user_in_db = get_user(fake_users_db, email)
             
         access_token_expires = timedelta(minutes=30)
@@ -246,7 +256,8 @@ async def google_login(request: GoogleLoginRequest):
             username=user_in_db.username,
             email=user_in_db.email,
             full_name=user_in_db.full_name,
-            picture=user_in_db.picture
+            picture=user_in_db.picture,
+            created_at=getattr(user_in_db, "created_at", None)
         )
         
         return {"access_token": access_token, "token_type": "bearer", "user": user_response}
