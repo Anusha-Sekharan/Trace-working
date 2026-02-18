@@ -1,6 +1,6 @@
 # TRACE - AI-Driven Team Formation !
 
-## Project Structure
+## Project Structure !
 - `client/`: React + Vite frontend
 - `server/`: FastAPI backend
 
