@@ -4,7 +4,7 @@
 - `client/`: React + Vite frontend
 - `server/`: FastAPI backend
 
-## How to Run
+## How to Run ?
 
 You will need two separate terminal windows.
 
