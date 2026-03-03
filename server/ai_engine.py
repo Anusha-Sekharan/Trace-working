@@ -57,7 +57,7 @@ def generate_mock_candidates(skill, location, count=3):
     """
     
     try:
-        response = ollama.chat(model='llama3.2:3b', messages=[
+        response = ollama.chat(model='llama3.1:8b', messages=[
             {'role': 'user', 'content': prompt},
         ])
         
@@ -118,7 +118,7 @@ async def chat_with_assistant(history):
             
     try:
         # Use sync client for now as python-ollama is sync, wrap if needed but blocking is fine for local
-        response = ollama.chat(model='llama3.2:3b', messages=messages)
+        response = ollama.chat(model='llama3.1:8b', messages=messages)
         content = response['message']['content'].strip()
         
         if content.startswith("SEARCH:"):

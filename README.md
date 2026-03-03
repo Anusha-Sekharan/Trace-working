@@ -1,4 +1,4 @@
-# TRACE !
+# TRACE - AI-Driven Team Formation !
 
 ## Project Structure !
 - `client/`: React + Vite frontend
