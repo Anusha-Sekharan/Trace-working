@@ -8,7 +8,7 @@
 
 You will need two separate terminal windows.
 
-### 1. Start the Frontend (Client)
+### 1. Start the Frontend (Client) :
 ```bash
 cd client
 npm install
@@ -16,7 +16,7 @@ npm run dev
 ```
 The application will run at [http://localhost:5173](http://localhost:5173).
 
-### 2. Start the Backend (Server)
+### 2. Start the Backend (Server) :
 ```bash
 cd server
 python -m venv venv
