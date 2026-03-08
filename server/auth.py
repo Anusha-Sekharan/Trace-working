@@ -25,6 +25,10 @@ class User(BaseModel):
     picture: Optional[str] = None
     github_link: Optional[str] = None
     linkedin_link: Optional[str] = None
+    evidence_bundle: Optional[str] = None
+    role: Optional[str] = None
+    ai_score: Optional[int] = None
+    is_assessed: Optional[bool] = False
     created_at: Optional[datetime] = None
     disabled: Optional[bool] = None
 

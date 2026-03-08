@@ -1,16 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Mail, Shield, Calendar, LogOut } from 'lucide-react';
+import { User, Mail, Shield, Calendar, LogOut, FileUp, Download, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, token } = useAuth();
     const navigate = useNavigate();
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState('');
 
     const handleLogout = () => {
         logout();
         navigate('/');
+    };
+
+    const handleUploadEvidence = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        setUploadError('');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadResponse = await fetch('http://localhost:8000/api/user/upload-evidence', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                const errInfo = await uploadResponse.json();
+                throw new Error(errInfo.detail || 'Failed to upload evidence bundle');
+            }
+
+            const updatedUser = await uploadResponse.json();
+
+            // Note: In an ideal scenario updateUser is available in context
+            // For now, reload window to fetch updated user state
+            window.location.reload();
+
+        } catch (err) {
+            setUploadError(err.message);
+        } finally {
+            setUploading(false);
+        }
     };
 
     if (!user) {
@@ -71,7 +110,7 @@ const Profile = () => {
                 </div>
 
                 {/* Additional Stats / Placeholder */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/10 pt-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/10 pt-8 mt-8">
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                         <div className="text-gray-400 text-sm mb-1">Account Type</div>
                         <div className="text-xl font-semibold text-white">Developer</div>
@@ -86,6 +125,82 @@ const Profile = () => {
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                         <div className="text-gray-400 text-sm mb-1">Status</div>
                         <div className="text-green-400 font-semibold">Active</div>
+                    </div>
+                </div>
+
+                {/* Evidence Bundle Section */}
+                <div className="mt-8 border-t border-white/10 pt-8">
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-primary" />
+                        Evidence Bundle
+                    </h3>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                        {user.evidence_bundle ? (
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-gray-300 mb-1">Your evidence bundle is uploaded.</p>
+                                    <p className="text-xs text-gray-500">Contains your certificates, resume or portfolio.</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <a
+                                        href={`http://localhost:8000/${user.evidence_bundle}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary/20 text-primary rounded-lg border border-primary/30 hover:bg-primary/30 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" /> Download
+                                    </a>
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept=".zip,.pdf"
+                                            onChange={handleUploadEvidence}
+                                            disabled={uploading}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                        />
+                                        <button disabled={uploading} className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg border border-white/20 hover:bg-white/20 transition-colors disabled:opacity-50">
+                                            {uploading ? <Loader className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                                            Update
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-6 text-center">
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                                    <FileUp className="w-8 h-8 text-gray-500" />
+                                </div>
+                                <h4 className="text-lg font-medium text-white mb-2">No Evidence Bundle</h4>
+                                <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">
+                                    Upload a ZIP or PDF containing your resume, certificates, or portfolio to verify your skills.
+                                </p>
+
+                                {uploadError && (
+                                    <p className="text-red-400 text-sm mb-4">{uploadError}</p>
+                                )}
+
+                                <div className="relative inline-block">
+                                    <input
+                                        type="file"
+                                        accept=".zip,.pdf"
+                                        onChange={handleUploadEvidence}
+                                        disabled={uploading}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                    />
+                                    <button disabled={uploading} className="flex items-center gap-2 px-6 py-3 bg-primary text-black font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+                                        {uploading ? (
+                                            <>
+                                                <Loader className="w-5 h-5 animate-spin" /> Uploading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FileUp className="w-5 h-5" /> Upload Bundle
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

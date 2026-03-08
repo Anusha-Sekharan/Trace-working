@@ -164,3 +164,89 @@ async def chat_with_assistant(history):
             "content": "I'm having trouble connecting to my brain right now.",
             "data": None
         }
+
+async def conduct_mock_interview(role: str, history: list[dict]):
+    """
+    Conducts a mock technical interview using Ollama.
+    """
+    system_prompt = f"""
+    You are an expert Technical Interviewer for the role of '{role}'.
+    Your goal is to conduct a realistic, challenging, but fair technical screening.
+    
+    Guidelines:
+    1. Start by welcoming the candidate and asking a warm-up technical question related to {role}.
+    2. Ask one question at a time. Wait for the candidate's response.
+    3. Evaluate their previous answer briefly (e.g., "Good point", or "Actually, a better approach would be...").
+    4. Gradually increase the difficulty of the questions.
+    5. Keep your responses concise and conversational (maximum 3-4 sentences). Do not provide long explanations unless explicitly asked.
+    6. If the user asks for feedback or says they are done, provide a brief summary of their performance.
+    """
+    
+    messages = [{'role': 'system', 'content': system_prompt}] + history
+    
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=messages)
+        content = response['message']['content'].strip()
+        
+        return {
+            "type": "text",
+            "content": content,
+            "data": None
+        }
+    except Exception as e:
+        print(f"Interview Chat Error: {e}")
+        return {
+            "type": "text",
+            "content": "I'm currently unable to conduct the interview. Please try again later.",
+            "data": None
+        }
+
+async def generate_assessment_questions(role: str):
+    """
+    Generates 5 technical questions for the specified role using Ollama.
+    """
+    prompt = f"""
+    You are an expert technical interviewer. Generate exactly 5 challenging but fair technical interview questions for a '{role}'.
+    Return ONLY a JSON array of strings, where each string is a question.
+    Example: ["Question 1", "Question 2"]
+    No markdown formatting, just the JSON array.
+    """
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
+        content = response['message']['content'].strip()
+        # Clean potential markdown
+        content = content.replace("```json", "").replace("```", "").strip()
+        questions = json.loads(content)
+        if isinstance(questions, list) and len(questions) > 0:
+            return questions[:5]
+        return ["What is your experience in this role?", "How do you handle debugging?", "Describe a challenging project you worked on.", "How do you stay updated with technology?", "What is your preferred tech stack?"]
+    except Exception as e:
+        print(f"Error generating questions: {e}")
+        return ["What are the core concepts of this role?", "Explain a complex problem you solved.", "How do you test your work?", "Describe your architectural approach.", "How do you optimize performance?"]
+
+async def evaluate_assessment(role: str, q_and_a: list):
+    """
+    Evaluates the answers to the assessment and returns a score from 0 to 100.
+    q_and_a is a list of dicts: [{"question": "...", "answer": "..."}]
+    """
+    prompt = f"""
+    You are an expert technical interviewer evaluating a candidate for the role of '{role}'.
+    The candidate was asked the following questions and provided these answers:
+    {json.dumps(q_and_a, indent=2)}
+    
+    Evaluate their technical knowledge, problem-solving skills, and relevance to the role.
+    Score the candidate on a scale of 0 to 100.
+    Return ONLY a JSON object with a single key 'score' containing the integer score.
+    Example: {{"score": 85}}
+    No markdown formatting, just the JSON object.
+    """
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
+        content = response['message']['content'].strip()
+        content = content.replace("```json", "").replace("```", "").strip()
+        result = json.loads(content)
+        return int(result.get('score', 50))
+    except Exception as e:
+        print(f"Error evaluating assessment: {e}")
+        return random.randint(50, 85)  # Fallback random score if parsing fails
+

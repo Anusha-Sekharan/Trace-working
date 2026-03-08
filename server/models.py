@@ -15,3 +15,7 @@ class User(Base):
     disabled = Column(Boolean, default=False)
     github_link = Column(String(1024), nullable=True)
     linkedin_link = Column(String(1024), nullable=True)
+    evidence_bundle = Column(String(1024), nullable=True)
+    role = Column(String(255), nullable=True)
+    ai_score = Column(Integer, nullable=True)
+    is_assessed = Column(Boolean, default=False)

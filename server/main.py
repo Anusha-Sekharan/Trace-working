@@ -3,12 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import random
 from integrations import search_candidates, get_github_user_details
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from auth import Token, User, verify_password, create_access_token, get_password_hash
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import os
+import shutil
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -20,6 +23,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 async def root():
@@ -95,24 +101,49 @@ MOCK_CANDIDATES = [
 ]
 
 @app.get("/api/search")
-async def search_api(query: str = ""):
+async def search_api(query: str = "", db: Session = Depends(get_db)):
+    # 1. Fetch from Database
+    db_candidates = []
+    if query:
+        db_users = db.query(models.User).filter(
+            models.User.role.ilike(f"%{query}%") |
+            models.User.full_name.ilike(f"%{query}%")
+        ).all()
+    else:
+        db_users = db.query(models.User).filter(models.User.is_assessed == True).all()
+
+    for u in db_users:
+        db_candidates.append({
+            "id": u.id + 10000, # Offset ID to avoid conflict with mocks
+            "name": u.full_name,
+            "role": u.role or "Developer",
+            "verified": u.is_assessed,
+            "skills": [u.role] if u.role else [],
+            "linkedin": u.linkedin_link,
+            "github": u.github_link,
+            "image": u.picture or f"https://api.dicebear.com/7.x/avataaars/svg?seed={u.full_name.replace(' ', '')}",
+            "experience": "AI Assessed",
+            "ai_score": u.ai_score
+        })
+
     if not query:
-        return {"candidates": MOCK_CANDIDATES}
+        return {"candidates": db_candidates + MOCK_CANDIDATES}
     
-    # Use real integration
+    # 2. Use real integration
     results = await search_candidates(query)
     
-    # Fallback if no results found or API fails
+    # 3. Fallback if no results found or API fails
     if not results:
-         query = query.lower()
+         q_lower = query.lower()
          results = [
             c for c in MOCK_CANDIDATES 
-            if query in c["name"].lower() or 
-            query in c["role"].lower() or
-            any(query in s.lower() for s in c["skills"])
+            if q_lower in c["name"].lower() or 
+            q_lower in c["role"].lower() or
+            any(q_lower in s.lower() for s in c["skills"])
         ]
 
-    return {"candidates": results}
+    # Combine DB candidates with external/mock results
+    return {"candidates": db_candidates + results}
 
 class FindNearbyRequest(BaseModel):
     username: str = ""
@@ -210,6 +241,10 @@ async def login_for_access_token(form_data: LoginRequest, db: Session = Depends(
         picture=db_user.picture,
         github_link=db_user.github_link,
         linkedin_link=db_user.linkedin_link,
+        evidence_bundle=db_user.evidence_bundle,
+        role=db_user.role,
+        ai_score=db_user.ai_score,
+        is_assessed=db_user.is_assessed,
         created_at=db_user.created_at
     )
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
@@ -277,6 +312,10 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             picture=db_user.picture,
             github_link=db_user.github_link,
             linkedin_link=db_user.linkedin_link,
+            evidence_bundle=db_user.evidence_bundle,
+            role=db_user.role,
+            ai_score=db_user.ai_score,
+            is_assessed=db_user.is_assessed,
             created_at=db_user.created_at
         )
         print("DEBUG: Login successful, returning response.")
@@ -352,6 +391,58 @@ async def update_profile(request: UpdateProfileRequest, token: str = Depends(OAu
         picture=db_user.picture,
         github_link=db_user.github_link,
         linkedin_link=db_user.linkedin_link,
+        evidence_bundle=db_user.evidence_bundle,
+        role=db_user.role,
+        ai_score=db_user.ai_score,
+        is_assessed=db_user.is_assessed,
+        created_at=db_user.created_at
+    )
+
+@app.post("/api/user/upload-evidence", response_model=User)
+async def upload_evidence(file: UploadFile = File(...), token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    try:
+        from jose import jwt, JWTError
+        from auth import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    db_user = get_user_by_username(db, username)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if not file.filename.lower().endswith(('.pdf', '.zip')):
+        raise HTTPException(status_code=400, detail="Only PDF or ZIP files are allowed")
+
+    file_extension = file.filename.split('.')[-1]
+    filename = f"{db_user.username.replace('@', '_').replace('.', '_')}_evidence.{file_extension}"
+    file_path = f"uploads/{filename}"
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        db_user.evidence_bundle = file_path
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Upload Failed: {str(e)}")
+
+    return User(
+        username=db_user.username,
+        email=db_user.email,
+        full_name=db_user.full_name,
+        picture=db_user.picture,
+        github_link=db_user.github_link,
+        linkedin_link=db_user.linkedin_link,
+        evidence_bundle=db_user.evidence_bundle,
+        role=db_user.role,
+        ai_score=db_user.ai_score,
+        is_assessed=db_user.is_assessed,
         created_at=db_user.created_at
     )
 
@@ -364,3 +455,76 @@ async def chat_endpoint(request: ChatRequest):
     # Response is now a dictionary {type, content, data}
     response = await chat_with_assistant(request.history)
     return {"response": response}
+
+class InterviewRequest(BaseModel):
+    role: str
+    history: list[dict]
+
+@app.post("/api/interview")
+async def interview_endpoint(request: InterviewRequest):
+    from ai_engine import conduct_mock_interview
+    response = await conduct_mock_interview(request.role, request.history)
+    return {"response": response}
+
+class AssessmentStartRequest(BaseModel):
+    role: str
+
+@app.post("/api/assessment/start")
+async def start_assessment(request: AssessmentStartRequest):
+    from ai_engine import generate_assessment_questions
+    questions = await generate_assessment_questions(request.role)
+    return {"questions": questions}
+
+class QAndA(BaseModel):
+    question: str
+    answer: str
+
+class AssessmentSubmitRequest(BaseModel):
+    role: str
+    q_and_a: list[QAndA]
+
+@app.post("/api/assessment/submit", response_model=User)
+async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    from ai_engine import evaluate_assessment
+    from jose import jwt, JWTError
+    from auth import SECRET_KEY, ALGORITHM
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    db_user = get_user_by_username(db, username)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    q_and_a_dicts = [{"question": qa.question, "answer": qa.answer} for qa in request.q_and_a]
+    score = await evaluate_assessment(request.role, q_and_a_dicts)
+    
+    try:
+        db_user.role = request.role
+        db_user.ai_score = score
+        db_user.is_assessed = True
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+        
+    return User(
+        username=db_user.username,
+        email=db_user.email,
+        full_name=db_user.full_name,
+        picture=db_user.picture,
+        github_link=db_user.github_link,
+        linkedin_link=db_user.linkedin_link,
+        evidence_bundle=db_user.evidence_bundle,
+        role=db_user.role,
+        ai_score=db_user.ai_score,
+        is_assessed=db_user.is_assessed,
+        created_at=db_user.created_at
+    )
+

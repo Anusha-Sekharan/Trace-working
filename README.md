@@ -22,6 +22,7 @@ cd server
 python -m venv venv
 # Windows
 .\venv\Scripts\activate
+.\venv\Scripts\Activate.ps1 (imp)
 # Mac/Linux
 source venv/bin/activate
 
