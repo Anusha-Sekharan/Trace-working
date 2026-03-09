@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Mail, Shield, Calendar, LogOut, FileUp, Download, Loader } from 'lucide-react';
+import { User, Mail, Shield, Calendar, LogOut, FileUp, Download, Loader, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
@@ -13,6 +13,32 @@ const Profile = () => {
     const handleLogout = () => {
         logout();
         navigate('/');
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8000/api/user/account', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errInfo = await response.json();
+                throw new Error(errInfo.detail || 'Failed to delete account');
+            }
+
+            // On success, logout and redirect
+            logout();
+            navigate('/');
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
     const handleUploadEvidence = async (e) => {
@@ -98,13 +124,20 @@ const Profile = () => {
                     </div>
 
                     {/* Actions */}
-                    <div>
+                    <div className="flex flex-col gap-3">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all font-medium"
+                            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all font-medium"
                         >
                             <LogOut className="w-4 h-4" />
                             Sign Out
+                        </button>
+                        <button
+                            onClick={handleDeleteAccount}
+                            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all font-medium"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Account
                         </button>
                     </div>
                 </div>

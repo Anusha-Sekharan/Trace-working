@@ -446,6 +446,34 @@ async def upload_evidence(file: UploadFile = File(...), token: str = Depends(OAu
         created_at=db_user.created_at
     )
 
+@app.delete("/api/user/account")
+async def delete_account(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    try:
+        from jose import jwt, JWTError
+        from auth import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    db_user = get_user_by_username(db, username)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    try:
+        # Delete evidence bundle file if it exists
+        if db_user.evidence_bundle and os.path.exists(db_user.evidence_bundle):
+            os.remove(db_user.evidence_bundle)
+            
+        db.delete(db_user)
+        db.commit()
+        return {"success": True, "message": "Account deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
 class ChatRequest(BaseModel):
     history: list[dict]
 
