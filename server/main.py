@@ -467,12 +467,14 @@ async def delete_account(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/ap
         if db_user.evidence_bundle and os.path.exists(db_user.evidence_bundle):
             os.remove(db_user.evidence_bundle)
             
+        # Delete user from database
         db.delete(db_user)
         db.commit()
-        return {"success": True, "message": "Account deleted successfully"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
+    return {"message": "Account deleted successfully"}
 
 class ChatRequest(BaseModel):
     history: list[dict]
