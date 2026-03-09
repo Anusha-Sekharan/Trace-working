@@ -203,12 +203,12 @@ async def conduct_mock_interview(role: str, history: list[dict]):
 
 async def generate_assessment_questions(role: str):
     """
-    Generates 5 technical questions for the specified role using Ollama.
+    Generates 5 technical multiple choice questions for the specified role using Ollama.
     """
     prompt = f"""
-    You are an expert technical interviewer. Generate exactly 5 challenging but fair technical interview questions for a '{role}'.
-    Return ONLY a JSON array of strings, where each string is a question.
-    Example: ["Question 1", "Question 2"]
+    You are an expert technical interviewer. Generate exactly 5 challenging but fair technical multiple-choice interview questions for a '{role}'.
+    Return ONLY a JSON array of objects, where each object has a 'question' string and an 'options' array of 4 possible answers strings.
+    Example: [{{"question": "What is x?", "options": ["A", "B", "C", "D"]}}]
     No markdown formatting, just the JSON array.
     """
     try:
@@ -219,10 +219,22 @@ async def generate_assessment_questions(role: str):
         questions = json.loads(content)
         if isinstance(questions, list) and len(questions) > 0:
             return questions[:5]
-        return ["What is your experience in this role?", "How do you handle debugging?", "Describe a challenging project you worked on.", "How do you stay updated with technology?", "What is your preferred tech stack?"]
+        return [
+            {"question": "What is your primary tech stack?", "options": ["Python/React", "Node/Vue", "Java/Angular", "Go/Svelte"]},
+            {"question": "How do you handle state in frontend?", "options": ["Redux", "Context", "Zustand", "Props"]},
+            {"question": "What is the best way to scale a database?", "options": ["Vertical", "Sharding", "Indexes", "Cache"]},
+            {"question": "How do you secure an API?", "options": ["JWT", "Basic Auth", "No Auth", "IP Whitelist"]},
+            {"question": "Which HTTP method is idempotent?", "options": ["GET", "POST", "PATCH", "CONNECT"]}
+        ]
     except Exception as e:
         print(f"Error generating questions: {e}")
-        return ["What are the core concepts of this role?", "Explain a complex problem you solved.", "How do you test your work?", "Describe your architectural approach.", "How do you optimize performance?"]
+        return [
+            {"question": "What is the core pattern here?", "options": ["MVC", "MVVM", "Singleton", "Factory"]},
+            {"question": "How to resolve merge conflicts?", "options": ["Rebase", "Merge commit", "Force push", "Delete repo"]},
+            {"question": "What is a closure?", "options": ["Function scope", "Block scope", "Global", "Module"]},
+            {"question": "When to use WebSockets?", "options": ["Real-time", "Static files", "Batch processing", "Emails"]},
+            {"question": "Best practice for passwords?", "options": ["Bcrypt", "Plain text", "MD5", "Base64"]}
+        ]
 
 async def evaluate_assessment(role: str, q_and_a: list):
     """
@@ -231,13 +243,13 @@ async def evaluate_assessment(role: str, q_and_a: list):
     """
     prompt = f"""
     You are an expert technical interviewer evaluating a candidate for the role of '{role}'.
-    The candidate was asked the following questions and provided these answers:
+    The candidate was asked the following multiple choice questions and selected these answers:
     {json.dumps(q_and_a, indent=2)}
     
-    Evaluate their technical knowledge, problem-solving skills, and relevance to the role.
-    Score the candidate on a scale of 0 to 100.
+    Evaluate if their selected answers are correct for the technical questions.
+    Score the candidate on a scale of 0 to 100 based on how many they got right (e.g., 5/5 = 100, 4/5 = 80).
     Return ONLY a JSON object with a single key 'score' containing the integer score.
-    Example: {{"score": 85}}
+    Example: {{"score": 80}}
     No markdown formatting, just the JSON object.
     """
     try:

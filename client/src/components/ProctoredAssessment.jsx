@@ -88,7 +88,7 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
         setCurrentStep('scoring');
         try {
             const qAndA = questions.map((q, i) => ({
-                question: q,
+                question: typeof q === 'string' ? q : q.question,
                 answer: finalAnswers[i] || ""
             }));
 
@@ -198,17 +198,38 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
                         </div>
 
                         <div className="bg-white/5 p-6 rounded-xl border border-white/10 shadow-inner">
-                            <p className="text-lg font-medium leading-relaxed">{questions[currentQuestionIndex]}</p>
+                            <p className="text-lg font-medium leading-relaxed">
+                                {typeof questions[currentQuestionIndex] === 'string' ? questions[currentQuestionIndex] : questions[currentQuestionIndex]?.question}
+                            </p>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm text-gray-400 font-medium">Your Answer</label>
-                            <textarea
-                                value={currentAnswer}
-                                onChange={(e) => setCurrentAnswer(e.target.value)}
-                                placeholder="Type your answer here..."
-                                className="w-full h-32 bg-black/50 border border-white/10 text-white rounded-xl p-4 focus:outline-none focus:border-cyan-500 transition-colors resize-none shadow-inner"
-                            />
+                        <div className="space-y-3">
+                            <label className="text-sm text-gray-400 font-medium">Select your answer</label>
+                            {questions[currentQuestionIndex]?.options ? (
+                                questions[currentQuestionIndex].options.map((option, idx) => (
+                                    <label key={idx} className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${currentAnswer === option ? 'border-cyan-500 bg-cyan-500/10' : 'border-white/10 bg-black/50 hover:bg-white/5'}`}>
+                                        <input
+                                            type="radio"
+                                            name="mcq-option"
+                                            value={option}
+                                            checked={currentAnswer === option}
+                                            onChange={(e) => setCurrentAnswer(e.target.value)}
+                                            className="hidden"
+                                        />
+                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${currentAnswer === option ? 'border-cyan-500' : 'border-gray-500'}`}>
+                                            {currentAnswer === option && <div className="w-2.5 h-2.5 rounded-full bg-cyan-500" />}
+                                        </div>
+                                        <span className={currentAnswer === option ? 'text-white' : 'text-gray-300'}>{option}</span>
+                                    </label>
+                                ))
+                            ) : (
+                                <textarea
+                                    value={currentAnswer}
+                                    onChange={(e) => setCurrentAnswer(e.target.value)}
+                                    placeholder="Type your answer here..."
+                                    className="w-full h-32 bg-black/50 border border-white/10 text-white rounded-xl p-4 focus:outline-none focus:border-cyan-500 transition-colors resize-none shadow-inner"
+                                />
+                            )}
                         </div>
 
                         <button
