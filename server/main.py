@@ -12,6 +12,9 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import os
 import shutil
+from sqlalchemy.orm import Session
+import models
+from database import engine, get_db
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -177,9 +180,6 @@ async def find_nearby(request: FindNearbyRequest):
     }
 
 # Auth Logic with Database
-from sqlalchemy.orm import Session
-import models
-from database import engine, get_db
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
