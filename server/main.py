@@ -455,8 +455,9 @@ async def delete_account(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/ap
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token validation failed")
+    except Exception as e:
+        print(f"DEBUG: Delete Account Token Error: {e}")
+        raise HTTPException(status_code=401, detail=f"Token validation failed: {str(e)}")
 
     db_user = get_user_by_username(db, username)
     if not db_user:
