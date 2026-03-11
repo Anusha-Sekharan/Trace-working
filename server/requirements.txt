@@ -11,3 +11,5 @@ requests
 sqlalchemy
 pymysql
 python-dotenv
+psycopg2-binary
+alembic
