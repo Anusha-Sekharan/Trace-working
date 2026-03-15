@@ -25,6 +25,21 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
         };
     }, []);
 
+    // Alert if user switches tabs or windows
+    useEffect(() => {
+        const handleBlur = () => {
+            if (currentStep === 'testing') {
+                alert("Warning: You have navigated away from the assessment window. Please stay on this page until the assessment is complete.");
+            }
+        };
+
+        window.addEventListener('blur', handleBlur);
+
+        return () => {
+            window.removeEventListener('blur', handleBlur);
+        };
+    }, [currentStep]);
+
     const startCamera = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
