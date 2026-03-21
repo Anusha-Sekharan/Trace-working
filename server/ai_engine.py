@@ -1,6 +1,30 @@
 import random
 import ollama
 import json
+import os
+from dotenv import load_dotenv
+load_dotenv()
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+import google.generativeai as genai
+
+# Setup Gemini (User should set GOOGLE_API_KEY env var)
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", "YOUR_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+
+async def analyze_vibe(image_data: str = None, chat_history: list = None):
+    """
+    Uses Gemini to analyze candidate confidence and engagement.
+    """
+    prompt = "Analyze this candidate's interview performance based on their chat history. Look for confidence, clarity, and engagement. Return ONLY a JSON object with 'vibe_score' (int 0-100) and 'feedback' (string)."
+    
+    try:
+        history_text = json.dumps(chat_history) if chat_history else "No history"
+        response = gemini_model.generate_content(f"{prompt}\n\nChat History: {history_text}")
+        content = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(content)
+    except Exception as e:
+        print(f"Gemini Vibe Error: {e}")
+        return {"vibe_score": 75, "feedback": "Good engagement but could show more confidence."}
 
 def calculate_match_score(candidate_profile, job_requirements):
     """
@@ -262,3 +286,119 @@ async def evaluate_assessment(role: str, q_and_a: list):
         print(f"Error evaluating assessment: {e}")
         return random.randint(50, 85)  # Fallback random score if parsing fails
 
+
+import pypdf
+import os
+
+async def parse_resume_content(file_path: str):
+    """
+    Extracts text from PDF/DOCX and uses AI to parse skills and projects.
+    """
+    text = ""
+    if file_path.endswith('.pdf'):
+        with open(file_path, "rb") as f:
+            reader = pypdf.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+    
+    prompt = f"""
+    Extract professional details from this resume text:
+    {text[:4000]}  # Truncate to avoid context window issues
+    
+    Return ONLY a JSON object with:
+    - skills: list of strings
+    - projects: list of objects with "title" and "description"
+    - experience_years: integer
+    - suggested_role: string
+    
+    No markdown formatting.
+    """
+    
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
+        content = response['message']['content'].strip()
+        content = content.replace("```json", "").replace("```", "").strip()
+        return json.loads(content)
+    except Exception as e:
+        print(f"Resume Parsing Error: {e}")
+        return {"skills": [], "projects": [], "experience_years": 0, "suggested_role": "Developer"}
+
+async def form_team_synergy(project_description: str, candidates: list):
+    """
+    Selects a balanced team of 3 from a list of candidates for a project.
+    """
+    candidate_data = json.dumps([{
+        "id": c["id"], 
+        "name": c["name"], 
+        "skills": c["skills"], 
+        "role": c.get("role", "")
+    } for c in candidates])
+    
+    prompt = f"""
+    Given this project: "{project_description}"
+    And these candidates: {candidate_data}
+    
+    Select the BEST 3 candidates to form a team. 
+    A balanced team usually has a Lead, a Frontend specialist, and a Backend/DevOps specialist.
+    
+    Return ONLY a JSON object:
+    {{
+        "team_name": "Cool Name",
+        "members": [id1, id2, id3],
+        "synergy_score": 0-100,
+        "reasoning": "Why this team works"
+    }}
+    """
+    
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}], format='json')
+        content = response['message']['content'].strip().replace("```json", "").replace("```", "")
+        return json.loads(content)
+    except Exception as e:
+        print(f"Team Formation Error: {e}")
+        return {"team_name": "Dynamic Squad", "members": [c["id"] for c in candidates[:3]], "synergy_score": 70, "reasoning": "Fallback selection."}
+
+async def analyze_github_repos(username: str, repos_data: list):
+    """
+    Analyzes GitHub repository data for code quality and complexity.
+    """
+    prompt = f"""
+    Analyze these GitHub repositories for developer '{username}':
+    {json.dumps(repos_data[:5])}
+    
+    Rate the developer on:
+    - code_complexity: 1-10
+    - documentation_quality: 1-10
+    - consistency: 1-10
+    - top_languages: ["Lang1", "Lang2"]
+    
+    Return ONLY a JSON object with these keys. No markdown.
+    """
+    
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
+        content = response['message']['content'].strip().replace("```json", "").replace("```", "")
+        return json.loads(content)
+    except Exception as e:
+        print(f"GitHub Analysis Error: {e}")
+        return {"code_complexity": 5, "documentation_quality": 5, "consistency": 5, "top_languages": []}
+
+async def generate_learning_path(role: str, score: int, missed_topics: list):
+    """
+    Generates a personalized learning path based on assessment gaps.
+    """
+    prompt = f"""
+    A candidate for '{role}' scored {score}/100. They struggled with: {", ".join(missed_topics)}.
+    
+    Create a 3-step personalized learning path.
+    Return ONLY a JSON array of objects:
+    [
+        {{"step": "Topic Name", "resource": "Specific Link or Book", "why": "Reason"}}
+    ]
+    """
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
+        content = response['message']['content'].strip().replace("```json", "").replace("```", "")
+        return json.loads(content)
+    except:
+        return [{"step": "Foundations", "resource": "MDN Web Docs", "why": "Refresh core concepts"}]

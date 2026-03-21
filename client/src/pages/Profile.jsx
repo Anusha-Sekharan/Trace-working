@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Mail, Shield, Calendar, LogOut, FileUp, Download, Loader } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Mail, Shield, Calendar, LogOut, FileUp, Download, Loader, Star, Award, Github } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
 
 const Profile = () => {
     const { user, logout, token } = useAuth();
@@ -10,6 +10,10 @@ const Profile = () => {
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState('');
     const [deleting, setDeleting] = useState(false);
+
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
 
     const handleLogout = () => {
         logout();
@@ -82,13 +86,14 @@ const Profile = () => {
         }
     };
 
-    if (!user) {
-        return (
-            <div className="pt-24 flex justify-center items-center min-h-screen text-gray-400">
-                Please log in to view your profile.
-            </div>
-        );
-    }
+    const handleGithubAnalysis = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/user/github-analysis', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) window.location.reload();
+        } catch (err) { console.error(err); }
+    };
 
     return (
         <div className="pt-24 px-4 max-w-4xl mx-auto min-h-screen">
@@ -117,13 +122,21 @@ const Profile = () => {
                     {/* Basic Info */}
                     <div className="text-center md:text-left flex-1">
                         <h1 className="text-3xl font-bold text-white mb-2">{user.full_name || "User"}</h1>
-                        <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 mb-4">
+                        <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 mb-2">
                             <Mail className="w-4 h-4" />
                             <span>{user.email}</span>
                         </div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm border border-primary/20">
-                            <Shield className="w-4 h-4" />
-                            <span>Verified Account</span>
+                        <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs border border-primary/20">
+                                <Shield className="w-3 h-3" />
+                                <span>Verified Account</span>
+                            </div>
+                            {user.role && (
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs border border-secondary/20">
+                                    <Star className="w-3 h-3" />
+                                    <span>{user.role}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -131,7 +144,7 @@ const Profile = () => {
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all font-medium"
+                            className="flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all font-medium text-sm"
                         >
                             <LogOut className="w-4 h-4" />
                             Sign Out
@@ -139,7 +152,7 @@ const Profile = () => {
                         <button
                             onClick={handleDeleteAccount}
                             disabled={deleting}
-                            className="flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all font-medium disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all font-medium text-sm disabled:opacity-50"
                         >
                             {deleting ? <Loader className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
                             {deleting ? 'Deleting...' : 'Delete Account'}
@@ -147,23 +160,62 @@ const Profile = () => {
                     </div>
                 </div>
 
-                {/* Additional Stats / Placeholder */}
+                {/* AI Insights Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/10 pt-8 mt-8">
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <div className="text-gray-400 text-sm mb-1">Account Type</div>
-                        <div className="text-xl font-semibold text-white">Developer</div>
+                        <div className="text-gray-400 text-xs mb-1 uppercase tracking-wider font-bold">AI Score</div>
+                        <div className="text-2xl font-bold text-primary">{user.ai_score || "N/A"}</div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <div className="text-gray-400 text-sm mb-1">Member Since</div>
-                        <div className="text-xl font-semibold text-white flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '2024'}
+                        <div className="text-gray-400 text-xs mb-1 uppercase tracking-wider font-bold">Vibe Score</div>
+                        <div className="text-2xl font-bold text-secondary">{user.vibe_score || "N/A"}/100</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div className="text-gray-400 text-xs mb-1 uppercase tracking-wider font-bold">Status</div>
+                        <div className="text-green-400 font-semibold">{user.is_assessed ? 'Profile Verified' : 'Assessment Pending'}</div>
+                    </div>
+                </div>
+
+                {/* AI Extracted Skills */}
+                {user.skill_labels && (
+                    <div className="mt-8 border-t border-white/10 pt-8">
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <Award className="w-5 h-5 text-primary" /> AI-Verified Skills
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {JSON.parse(user.skill_labels).map(skill => (
+                                <span key={skill} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300">
+                                    {skill}
+                                </span>
+                            ))}
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <div className="text-gray-400 text-sm mb-1">Status</div>
-                        <div className="text-green-400 font-semibold">Active</div>
+                )}
+
+                {/* GitHub Analysis */}
+                <div className="mt-8 border-t border-white/10 pt-8">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Github className="w-5 h-5 text-primary" /> GitHub Code Analysis
+                        </h3>
+                        {user.github_link && !user.github_stats && (
+                            <button onClick={handleGithubAnalysis} className="text-xs px-3 py-1 bg-primary text-black rounded-lg font-bold">
+                                Analyze Code
+                            </button>
+                        )}
                     </div>
+                    {user.github_stats ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {Object.entries(JSON.parse(user.github_stats)).map(([key, val]) => (
+                                <div key={key} className="p-3 bg-white/5 rounded-lg border border-white/5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase font-black">{key.replace('_', ' ')}</div>
+                                    <div className="text-lg font-bold text-white">{Array.isArray(val) ? val[0] : val}</div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-500 italic">No GitHub analysis found. Connect your GitHub to see insights.</p>
+                    )}
                 </div>
 
                 {/* Evidence Bundle Section */}

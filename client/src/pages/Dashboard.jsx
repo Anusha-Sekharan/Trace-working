@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Code, Star, CheckCircle, Loader, Github, Linkedin, Award } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -55,11 +56,90 @@ const Dashboard = () => {
         }
     };
 
+    const { user, token } = useAuth();
+    const [projectDesc, setProjectDesc] = useState("");
+    const [recommendedTeam, setRecommendedTeam] = useState(null);
+
+    const handleBuildTeam = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:8000/api/build-team', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project_description: projectDesc })
+            });
+            const data = await res.json();
+            setRecommendedTeam(data.team);
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
+    };
+
     return (
         <div className="pt-24 px-4 max-w-7xl mx-auto min-h-screen">
+            {/* AI Learning Path for User */}
+            {user && user.learning_path && (
+                <div className="mb-12 p-6 glass-panel border-primary/30 bg-primary/5 rounded-2xl">
+                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <Award className="w-6 h-6 text-primary" /> Personalized Learning Path
+                    </h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        {JSON.parse(user.learning_path).map((step, i) => (
+                            <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                <div className="text-primary font-black mb-1">STEP {i + 1}</div>
+                                <div className="text-white font-bold mb-2">{step.step}</div>
+                                <p className="text-xs text-gray-400 mb-3">{step.why}</p>
+                                <a href={step.resource} target="_blank" className="text-[10px] text-primary underline">Resource link</a>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="mb-8">
                 <h2 className="text-3xl font-bold mb-2 text-white">Find Your Teammate</h2>
                 <p className="text-gray-400">AI-curated matches based on your project requirements.</p>
+            </div>
+
+            {/* AI Team Builder */}
+            <div className="mb-12 glass-panel p-6 border-secondary/30 bg-secondary/5 rounded-2xl">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Code className="w-6 h-6 text-secondary" /> Autonomous Team Builder
+                </h3>
+                <div className="flex gap-4 mb-6">
+                    <input
+                        type="text"
+                        value={projectDesc}
+                        onChange={(e) => setProjectDesc(e.target.value)}
+                        placeholder="Describe your project (e.g. 'Build a fintech app with React and Go')"
+                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-secondary transition-colors"
+                    />
+                    <button
+                        onClick={handleBuildTeam}
+                        className="bg-secondary text-black font-bold px-8 py-3 rounded-xl hover:bg-secondary/90 transition-all"
+                    >
+                        Generate Squad
+                    </button>
+                </div>
+
+                {recommendedTeam && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-white/5 rounded-xl border border-secondary/20">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-secondary font-bold text-lg">{recommendedTeam.team_name}</h4>
+                            <div className="text-xs font-mono text-secondary">Synergy Score: {recommendedTeam.synergy_score}%</div>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-4 italic">"{recommendedTeam.reasoning}"</p>
+                        <div className="flex gap-4">
+                            {recommendedTeam.members.map(id => (
+                                <div key={id} className="flex flex-col items-center gap-2">
+                                    <div className="w-10 h-10 rounded-full bg-secondary/20 border border-secondary/30 flex items-center justify-center text-secondary font-bold">
+                                        {id}
+                                    </div>
+                                    <span className="text-[10px] text-gray-500">ID: {id}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
             </div>
 
             {/* Search Bar */}

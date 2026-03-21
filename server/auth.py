@@ -31,6 +31,15 @@ class User(BaseModel):
     is_assessed: Optional[bool] = False
     created_at: Optional[datetime] = None
     disabled: Optional[bool] = None
+    skill_labels: Optional[str] = None
+    projects: Optional[str] = None
+    github_stats: Optional[str] = None
+    learning_path: Optional[str] = None
+    vibe_score: Optional[int] = None
+    vibe_feedback: Optional[str] = None
+
+    class Config:
+        from_attributes = True # Pydantic v2 equivalent of orm_mode
 
 class UserInDB(User):
     hashed_password: str

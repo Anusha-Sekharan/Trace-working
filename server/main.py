@@ -15,6 +15,8 @@ import shutil
 from sqlalchemy.orm import Session
 import models
 from database import engine, get_db
+import json
+from ai_engine import parse_resume_content, generate_learning_path, analyze_github_repos, form_team_synergy, analyze_vibe
 
 app = FastAPI(title="TRACE API", description="Backend for TRACE: AI-Driven Team Formation")
 
@@ -233,21 +235,7 @@ async def login_for_access_token(form_data: LoginRequest, db: Session = Depends(
         data={"sub": db_user.username}, expires_delta=access_token_expires
     )
     
-    # Convert SQLAlchemy model to Pydantic model for response
-    user_response = User(
-        username=db_user.username, 
-        email=db_user.email, 
-        full_name=db_user.full_name,
-        picture=db_user.picture,
-        github_link=db_user.github_link,
-        linkedin_link=db_user.linkedin_link,
-        evidence_bundle=db_user.evidence_bundle,
-        role=db_user.role,
-        ai_score=db_user.ai_score,
-        is_assessed=db_user.is_assessed,
-        created_at=db_user.created_at
-    )
-    return {"access_token": access_token, "token_type": "bearer", "user": user_response}
+    return {"access_token": access_token, "token_type": "bearer", "user": User.from_attributes(db_user)}
 
 
 
@@ -305,22 +293,7 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             data={"sub": db_user.username}, expires_delta=access_token_expires
         )
         
-        user_response = User(
-            username=db_user.username,
-            email=db_user.email,
-            full_name=db_user.full_name,
-            picture=db_user.picture,
-            github_link=db_user.github_link,
-            linkedin_link=db_user.linkedin_link,
-            evidence_bundle=db_user.evidence_bundle,
-            role=db_user.role,
-            ai_score=db_user.ai_score,
-            is_assessed=db_user.is_assessed,
-            created_at=db_user.created_at
-        )
-        print("DEBUG: Login successful, returning response.")
-        
-        return {"access_token": access_token, "token_type": "bearer", "user": user_response}
+        return {"access_token": access_token, "token_type": "bearer", "user": User.from_attributes(db_user)}
         
     except ValueError as e:
         # Invalid token
@@ -378,25 +351,67 @@ async def update_profile(request: UpdateProfileRequest, token: str = Depends(OAu
             
         db.commit()
         db.refresh(db_user)
-        print("DEBUG: Profile updated successfully in DB")
     except Exception as e:
-        print(f"DEBUG: Database Error during update: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database Update Failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+        
+    return User.from_attributes(db_user)
+
+@app.get("/api/user/github-analysis", response_model=User)
+async def github_analysis(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    try:
+        from jose import jwt
+        from auth import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db_user = get_user_by_username(db, username)
+    if not db_user or not db_user.github_link:
+        raise HTTPException(status_code=400, detail="GitHub link not provided")
+
+    gh_user = db_user.github_link.split('/')[-1]
+    # Mock repos data for now
+    mock_repos = [{"name": "project1", "stars": 10, "lang": "Python"}, {"name": "project2", "stars": 5, "lang": "React"}]
+    stats = await analyze_github_repos(gh_user, mock_repos)
     
-    return User(
-        username=db_user.username,
-        email=db_user.email,
-        full_name=db_user.full_name,
-        picture=db_user.picture,
-        github_link=db_user.github_link,
-        linkedin_link=db_user.linkedin_link,
-        evidence_bundle=db_user.evidence_bundle,
-        role=db_user.role,
-        ai_score=db_user.ai_score,
-        is_assessed=db_user.is_assessed,
-        created_at=db_user.created_at
+    db_user.github_stats = json.dumps(stats)
+    db.commit()
+    db.refresh(db_user)
+    
+    return User.from_attributes(db_user)
+
+class BuildTeamRequest(BaseModel):
+    project_description: str
+
+@app.post("/api/build-team")
+async def build_team(request: BuildTeamRequest, db: Session = Depends(get_db)):
+    users = db.query(models.User).filter(models.User.is_assessed == True).all()
+    candidates = []
+    for u in users:
+        candidates.append({
+            "id": u.id,
+            "name": u.full_name,
+            "skills": json.loads(u.skill_labels) if u.skill_labels else [u.role],
+            "role": u.role
+        })
+    
+    if len(candidates) < 3:
+        candidates.extend([{"id": c["id"], "name": c["name"], "skills": c["skills"], "role": c["role"]} for c in MOCK_CANDIDATES])
+
+    team_result = await form_team_synergy(request.project_description, candidates)
+    
+    new_team = models.Team(
+        name=team_result["team_name"],
+        description=request.project_description,
+        synergy_score=team_result["synergy_score"],
+        members=json.dumps(team_result["members"])
     )
+    db.add(new_team)
+    db.commit()
+    
+    return {"team": team_result}
 
 @app.post("/api/user/upload-evidence", response_model=User)
 async def upload_evidence(file: UploadFile = File(...), token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
@@ -432,19 +447,18 @@ async def upload_evidence(file: UploadFile = File(...), token: str = Depends(OAu
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload Failed: {str(e)}")
 
-    return User(
-        username=db_user.username,
-        email=db_user.email,
-        full_name=db_user.full_name,
-        picture=db_user.picture,
-        github_link=db_user.github_link,
-        linkedin_link=db_user.linkedin_link,
-        evidence_bundle=db_user.evidence_bundle,
-        role=db_user.role,
-        ai_score=db_user.ai_score,
-        is_assessed=db_user.is_assessed,
-        created_at=db_user.created_at
-    )
+    # Trigger AI Resume Parsing
+    try:
+        parsed_data = await parse_resume_content(file_path)
+        db_user.skill_labels = json.dumps(parsed_data.get("skills", []))
+        db_user.projects = json.dumps(parsed_data.get("projects", []))
+        db_user.role = parsed_data.get("suggested_role", db_user.role)
+        db.commit()
+    except Exception as ai_e:
+        print(f"AI Parse background error: {ai_e}")
+
+
+    return User.from_attributes(db_user)
 
 @app.delete("/api/user/account")
 async def delete_account(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
@@ -497,6 +511,29 @@ async def interview_endpoint(request: InterviewRequest):
     response = await conduct_mock_interview(request.role, request.history)
     return {"response": response}
 
+class VibeCheckRequest(BaseModel):
+    chat_history: list[dict]
+
+@app.post("/api/interview/vibe-check")
+async def vibe_check(request: VibeCheckRequest, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    try:
+        from jose import jwt
+        from auth import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    result = await analyze_vibe(chat_history=request.chat_history)
+    
+    db_user = get_user_by_username(db, username)
+    if db_user:
+        db_user.vibe_score = result.get("vibe_score", 70)
+        db_user.vibe_feedback = result.get("feedback", "")
+        db.commit()
+    
+    return result
+
 class AssessmentStartRequest(BaseModel):
     role: str
 
@@ -539,6 +576,12 @@ async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depen
         db_user.role = request.role
         db_user.ai_score = score
         db_user.is_assessed = True
+        
+        # Generate Learning Path
+        missed_topics = [qa.question for qa in request.q_and_a if "wrong" in qa.answer.lower()] # Simplified logic
+        l_path = await generate_learning_path(request.role, score, missed_topics)
+        db_user.learning_path = json.dumps(l_path)
+        
         db.commit()
         db.refresh(db_user)
     except Exception as e:
@@ -558,4 +601,3 @@ async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depen
         is_assessed=db_user.is_assessed,
         created_at=db_user.created_at
     )
-
