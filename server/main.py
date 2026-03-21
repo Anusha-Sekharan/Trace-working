@@ -394,13 +394,22 @@ async def build_team(request: BuildTeamRequest, db: Session = Depends(get_db)):
             "id": u.id,
             "name": u.full_name,
             "skills": json.loads(u.skill_labels) if u.skill_labels else [u.role],
-            "role": u.role
+            "role": u.role,
+            "avatar": f"https://api.dicebear.com/7.x/initials/svg?seed={u.full_name}"
         })
     
     if len(candidates) < 3:
-        candidates.extend([{"id": c["id"], "name": c["name"], "skills": c["skills"], "role": c["role"]} for c in MOCK_CANDIDATES])
+        candidates.extend([{"id": c["id"], "name": c["name"], "skills": c["skills"], "role": c.get("role", "Developer"), "avatar": c.get("avatar", f"https://api.dicebear.com/7.x/initials/svg?seed={c['name']}"), "link": c.get("github", "#")} for c in MOCK_CANDIDATES])
 
     team_result = await form_team_synergy(request.project_description, candidates)
+    
+    member_profiles = []
+    for m_id in team_result.get("members", []):
+        for c in candidates:
+            if c["id"] == m_id:
+                member_profiles.append(c)
+                break
+    team_result["member_profiles"] = member_profiles
     
     new_team = models.Team(
         name=team_result["team_name"],

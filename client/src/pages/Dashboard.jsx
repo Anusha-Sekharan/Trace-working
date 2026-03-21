@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Code, Star, CheckCircle, Loader, Github, Linkedin, Award } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
@@ -128,13 +129,26 @@ const Dashboard = () => {
                             <div className="text-xs font-mono text-secondary">Synergy Score: {recommendedTeam.synergy_score}%</div>
                         </div>
                         <p className="text-sm text-gray-400 mb-4 italic">"{recommendedTeam.reasoning}"</p>
-                        <div className="flex gap-4">
-                            {recommendedTeam.members.map(id => (
+                        <div className="flex flex-wrap gap-4 mt-4">
+                            {recommendedTeam.member_profiles ? recommendedTeam.member_profiles.map(candidate => (
+                                <div key={candidate.id} className="flex items-center gap-3 p-3 bg-black/40 border border-secondary/30 rounded-xl flex-1 min-w-[200px] hover:border-secondary transition-colors group">
+                                    <img src={candidate.avatar} alt={candidate.name} className="w-12 h-12 rounded-full border border-secondary/20" />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-white group-hover:text-secondary transition-colors">{candidate.name}</span>
+                                        <span className="text-[10px] text-gray-400 capitalize">{candidate.role || "Developer"}</span>
+                                        <div className="flex gap-1 mt-1">
+                                            {candidate.skills.slice(0, 2).map((s, idx) => (
+                                                <span key={idx} className="text-[8px] px-1.5 py-0.5 bg-secondary/10 text-secondary border border-secondary/20 rounded-sm">{s}</span>
+                                            ))}
+                                            {candidate.skills.length > 2 && <span className="text-[8px] px-1.5 py-0.5 text-gray-500">+{candidate.skills.length - 2}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : recommendedTeam.members.map(id => (
                                 <div key={id} className="flex flex-col items-center gap-2">
                                     <div className="w-10 h-10 rounded-full bg-secondary/20 border border-secondary/30 flex items-center justify-center text-secondary font-bold">
                                         {id}
                                     </div>
-                                    <span className="text-[10px] text-gray-500">ID: {id}</span>
                                 </div>
                             ))}
                         </div>
