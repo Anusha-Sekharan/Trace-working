@@ -8,7 +8,6 @@ import Dashboard from './pages/Dashboard';
 import InterviewRoom from './pages/InterviewRoom';
 import Profile from './pages/Profile';
 import Onboarding from './pages/Onboarding';
-import TeamBuilder from './pages/TeamBuilder';
 
 import ChatAssistant from './components/ChatAssistant';
 
@@ -32,7 +31,6 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/search" element={<SearchPage />} />
-              <Route path="/team-builder" element={<TeamBuilder />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/interview/:sessionId" element={<InterviewRoom />} />
               <Route path="/profile" element={<Profile />} />

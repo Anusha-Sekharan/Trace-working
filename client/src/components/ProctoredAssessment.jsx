@@ -11,8 +11,6 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [finalScore, setFinalScore] = useState(null);
-    const [learningPath, setLearningPath] = useState(null);
-    const [completedUser, setCompletedUser] = useState(null);
     const [cameraActive, setCameraActive] = useState(false);
 
     const videoRef = useRef(null);
@@ -122,11 +120,12 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
             const data = await res.json(); // returns updated User
 
             setFinalScore(data.ai_score);
-            if (data.learning_path) {
-                setLearningPath(JSON.parse(data.learning_path));
-            }
-            setCompletedUser(data);
             setCurrentStep('complete');
+
+            // Wait 3 seconds, then advance parent
+            setTimeout(() => {
+                onComplete(data);
+            }, 3000);
 
         } catch (err) {
             setError(err.message);
@@ -284,44 +283,14 @@ const ProctoredAssessment = ({ role, token, onComplete }) => {
                             <p className="text-gray-400 text-sm">Your AI-verified score has been calculated.</p>
                         </div>
 
-                        <div className="inline-block bg-white/5 px-8 py-4 rounded-2xl border border-white/10 mb-8">
+                        <div className="inline-block bg-white/5 px-8 py-4 rounded-2xl border border-white/10">
                             <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Final Score</p>
                             <div className="text-5xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                                 {finalScore}
                             </div>
                         </div>
 
-                        {learningPath && (
-                            <div className="text-left w-full max-w-3xl mx-auto mb-8 bg-black/40 p-8 rounded-2xl border border-cyan-500/20 shadow-xl shadow-cyan-500/5">
-                                <h4 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                                    <div className="p-2 bg-cyan-500/20 rounded-lg"><ArrowRight className="w-6 h-6 text-cyan-400" /></div> Personalized Learning Path
-                                </h4>
-                                <div className="grid gap-4">
-                                    {learningPath.map((step, i) => (
-                                        <div key={i} className="bg-white/5 p-6 rounded-xl border border-white/10 relative overflow-hidden group hover:bg-white/10 transition-colors">
-                                            <div className="absolute left-0 top-0 w-1.5 h-full bg-cyan-500 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                                            <div className="flex gap-6 items-start">
-                                                <div className="font-mono text-cyan-400 font-black text-2xl mt-1">0{i + 1}</div>
-                                                <div className="flex-1">
-                                                    <h5 className="font-bold text-white text-xl mb-2">{step.step}</h5>
-                                                    <p className="text-sm text-gray-400 mb-4 leading-relaxed max-w-2xl">{step.why}</p>
-                                                    <a href={step.resource} className="inline-flex items-center gap-2 text-xs uppercase tracking-wider font-bold bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded-lg hover:bg-cyan-500/30 transition-colors" target="_blank" rel="noreferrer">
-                                                        View Recommended Resource <ArrowRight className="w-4 h-4" />
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <button 
-                            onClick={() => onComplete(completedUser)} 
-                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-4 px-10 rounded-xl transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2 mx-auto"
-                        >
-                            Continue to Dashboard <ArrowRight className="w-5 h-5" />
-                        </button>
+                        <p className="text-xs text-gray-500 animate-pulse">Redirecting to dashboard...</p>
                     </motion.div>
                 )}
             </AnimatePresence>

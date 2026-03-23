@@ -58,7 +58,22 @@ const Dashboard = () => {
     };
 
     const { user, token } = useAuth();
+    const [projectDesc, setProjectDesc] = useState("");
+    const [recommendedTeam, setRecommendedTeam] = useState(null);
 
+    const handleBuildTeam = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:8000/api/build-team', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project_description: projectDesc })
+            });
+            const data = await res.json();
+            setRecommendedTeam(data.team);
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
+    };
 
     return (
         <div className="pt-24 px-4 max-w-7xl mx-auto min-h-screen">
@@ -86,6 +101,60 @@ const Dashboard = () => {
                 <p className="text-gray-400">AI-curated matches based on your project requirements.</p>
             </div>
 
+            {/* AI Team Builder */}
+            <div className="mb-12 glass-panel p-6 border-secondary/30 bg-secondary/5 rounded-2xl">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Code className="w-6 h-6 text-secondary" /> Autonomous Team Builder
+                </h3>
+                <div className="flex gap-4 mb-6">
+                    <input
+                        type="text"
+                        value={projectDesc}
+                        onChange={(e) => setProjectDesc(e.target.value)}
+                        placeholder="Describe your project (e.g. 'Build a fintech app with React and Go')"
+                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-secondary transition-colors"
+                    />
+                    <button
+                        onClick={handleBuildTeam}
+                        className="bg-secondary text-black font-bold px-8 py-3 rounded-xl hover:bg-secondary/90 transition-all"
+                    >
+                        Generate Squad
+                    </button>
+                </div>
+
+                {recommendedTeam && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-white/5 rounded-xl border border-secondary/20">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-secondary font-bold text-lg">{recommendedTeam.team_name}</h4>
+                            <div className="text-xs font-mono text-secondary">Synergy Score: {recommendedTeam.synergy_score}%</div>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-4 italic">"{recommendedTeam.reasoning}"</p>
+                        <div className="flex flex-wrap gap-4 mt-4">
+                            {recommendedTeam.member_profiles ? recommendedTeam.member_profiles.map(candidate => (
+                                <div key={candidate.id} className="flex items-center gap-3 p-3 bg-black/40 border border-secondary/30 rounded-xl flex-1 min-w-[200px] hover:border-secondary transition-colors group">
+                                    <img src={candidate.avatar} alt={candidate.name} className="w-12 h-12 rounded-full border border-secondary/20" />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-white group-hover:text-secondary transition-colors">{candidate.name}</span>
+                                        <span className="text-[10px] text-gray-400 capitalize">{candidate.role || "Developer"}</span>
+                                        <div className="flex gap-1 mt-1">
+                                            {candidate.skills.slice(0, 2).map((s, idx) => (
+                                                <span key={idx} className="text-[8px] px-1.5 py-0.5 bg-secondary/10 text-secondary border border-secondary/20 rounded-sm">{s}</span>
+                                            ))}
+                                            {candidate.skills.length > 2 && <span className="text-[8px] px-1.5 py-0.5 text-gray-500">+{candidate.skills.length - 2}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : recommendedTeam.members.map(id => (
+                                <div key={id} className="flex flex-col items-center gap-2">
+                                    <div className="w-10 h-10 rounded-full bg-secondary/20 border border-secondary/30 flex items-center justify-center text-secondary font-bold">
+                                        {id}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </div>
 
             {/* Search Bar */}
             <div className="relative mb-12">

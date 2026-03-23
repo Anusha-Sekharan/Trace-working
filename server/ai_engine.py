@@ -225,34 +225,6 @@ async def conduct_mock_interview(role: str, history: list[dict]):
             "data": None
         }
 
-async def evaluate_mock_interview(role: str, history: list[dict]):
-    """
-    Evaluates a mock interview transcript.
-    """
-    prompt = f"""
-    You are an expert technical interviewer evaluating a candidate for '{role}'.
-    Here is the interview transcript:
-    {json.dumps(history)}
-    
-    Evaluate their performance.
-    Return ONLY a JSON object with:
-    - 'score': integer from 0-100
-    - 'missed_topics': list of strings of exact technical concepts they struggled with or didn't explain well.
-    Example: {{"score": 75, "missed_topics": ["React Hooks", "State Management"]}}
-    """
-    try:
-        response = ollama.chat(model='llama3.1:8b', messages=[{'role': 'user', 'content': prompt}])
-        content = response['message']['content'].strip()
-        content = content.replace("```json", "").replace("```", "").strip()
-        result = json.loads(content)
-        return {
-            "score": int(result.get('score', 70)),
-            "missed_topics": result.get('missed_topics', [])
-        }
-    except Exception as e:
-        print(f"Error evaluating interview: {e}")
-        return {"score": 70, "missed_topics": ["General software engineering concepts"]}
-
 async def generate_assessment_questions(role: str):
     """
     Generates 5 technical multiple choice questions for the specified role using Ollama.
