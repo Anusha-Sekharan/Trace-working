@@ -605,7 +605,7 @@ class AssessmentSubmitRequest(BaseModel):
 
 @app.post("/api/assessment/submit", response_model=User)
 async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
-    from ai_engine import evaluate_assessment
+    from ai_engine import evaluate_assessment, generate_learning_path
     from jose import jwt, JWTError
     from auth import SECRET_KEY, ALGORITHM
     
@@ -622,7 +622,9 @@ async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depen
         raise HTTPException(status_code=404, detail="User not found")
         
     q_and_a_dicts = [{"question": qa.question, "answer": qa.answer} for qa in request.q_and_a]
-    score = await evaluate_assessment(request.role, q_and_a_dicts)
+    eval_result = await evaluate_assessment(request.role, q_and_a_dicts)
+    score = eval_result.get("score", 70)
+    missed_topics = eval_result.get("missed_topics", ["Fundamentals"])
     
     try:
         db_user.role = request.role
@@ -630,7 +632,6 @@ async def submit_assessment(request: AssessmentSubmitRequest, token: str = Depen
         db_user.is_assessed = True
         
         # Generate Learning Path
-        missed_topics = [qa.question for qa in request.q_and_a if "wrong" in qa.answer.lower()] # Simplified logic
         l_path = await generate_learning_path(request.role, score, missed_topics)
         db_user.learning_path = json.dumps(l_path)
         
