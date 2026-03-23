@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Video, Send, Terminal, Code2, Play } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { Mic, Video, Send, Terminal, Code2, Play, Loader } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const InterviewRoom = () => {
     const { sessionId } = useParams();
+    const navigate = useNavigate();
     const [code, setCode] = useState("// Write your solution here...\n\ndef solve(arr):\n    pass");
     const [messages, setMessages] = useState([
         { sender: 'AI', text: "Hello! I'm your TRACE AI interviewer. Let's start with a simple coding problem. Can you reverse an array in Python without using the built-in reverse method?" }
@@ -12,6 +13,7 @@ const InterviewRoom = () => {
     const { user, token } = useAuth();
     const [inputText, setInputText] = useState("");
     const [vibe, setVibe] = useState({ score: 88, feedback: "Ready to start" });
+    const [isEnding, setIsEnding] = useState(false);
 
     const handleSendMessage = async () => {
         if (!inputText) return;
@@ -41,6 +43,26 @@ const InterviewRoom = () => {
         } catch (err) { console.error(err); }
     };
 
+    const handleEndInterview = async () => {
+        setIsEnding(true);
+        try {
+            const res = await fetch('http://localhost:8000/api/interview/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ role: "Software Engineer", history: messages })
+            });
+            if (res.ok) {
+                navigate('/dashboard');
+            } else {
+                alert("Failed to evaluate interview.");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsEnding(false);
+        }
+    };
+
     return (
         <div className="pt-20 h-screen flex flex-col p-4 gap-4 overflow-hidden">
             {/* Header */}
@@ -53,6 +75,13 @@ const InterviewRoom = () => {
                     <div className="bg-dark/50 border border-white/10 px-4 py-2 rounded-lg flex items-center gap-2 text-white">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div> Proctoring Active
                     </div>
+                    <button 
+                        onClick={handleEndInterview} 
+                        disabled={isEnding || messages.length < 3}
+                        className="bg-primary text-black font-bold px-4 py-2 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {isEnding ? <><Loader className="w-4 h-4 animate-spin" /> Evaluating...</> : "End & Generate Path"}
+                    </button>
                 </div>
             </div>
 

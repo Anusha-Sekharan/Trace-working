@@ -235,7 +235,7 @@ async def login_for_access_token(form_data: LoginRequest, db: Session = Depends(
         data={"sub": db_user.username}, expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer", "user": User.from_attributes(db_user)}
+    return {"access_token": access_token, "token_type": "bearer", "user": User.model_validate(db_user)}
 
 
 
@@ -293,7 +293,7 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             data={"sub": db_user.username}, expires_delta=access_token_expires
         )
         
-        return {"access_token": access_token, "token_type": "bearer", "user": User.from_attributes(db_user)}
+        return {"access_token": access_token, "token_type": "bearer", "user": User.model_validate(db_user)}
         
     except ValueError as e:
         # Invalid token
@@ -355,7 +355,7 @@ async def update_profile(request: UpdateProfileRequest, token: str = Depends(OAu
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
         
-    return User.from_attributes(db_user)
+    return User.model_validate(db_user)
 
 @app.get("/api/user/github-analysis", response_model=User)
 async def github_analysis(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
@@ -380,7 +380,7 @@ async def github_analysis(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/a
     db.commit()
     db.refresh(db_user)
     
-    return User.from_attributes(db_user)
+    return User.model_validate(db_user)
 
 class BuildTeamRequest(BaseModel):
     project_description: str
@@ -467,7 +467,7 @@ async def upload_evidence(file: UploadFile = File(...), token: str = Depends(OAu
         print(f"AI Parse background error: {ai_e}")
 
 
-    return User.from_attributes(db_user)
+    return User.model_validate(db_user)
 
 @app.delete("/api/user/account")
 async def delete_account(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
@@ -519,6 +519,49 @@ async def interview_endpoint(request: InterviewRequest):
     from ai_engine import conduct_mock_interview
     response = await conduct_mock_interview(request.role, request.history)
     return {"response": response}
+
+class InterviewSubmitRequest(BaseModel):
+    role: str
+    history: list[dict]
+
+@app.post("/api/interview/submit", response_model=User)
+async def submit_interview(request: InterviewSubmitRequest, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login")), db: Session = Depends(get_db)):
+    from ai_engine import evaluate_mock_interview, generate_learning_path
+    from jose import jwt, JWTError
+    from auth import SECRET_KEY, ALGORITHM
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    db_user = get_user_by_username(db, username)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    eval_result = await evaluate_mock_interview(request.role, request.history)
+    score = eval_result.get("score", 70)
+    missed_topics = eval_result.get("missed_topics", ["System Design"])
+    
+    try:
+        db_user.role = request.role
+        db_user.ai_score = score
+        db_user.is_assessed = True
+        
+        # Generate Learning Path using Ollama
+        l_path = await generate_learning_path(request.role, score, missed_topics)
+        db_user.learning_path = json.dumps(l_path)
+        
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+        
+    return User.model_validate(db_user)
 
 class VibeCheckRequest(BaseModel):
     chat_history: list[dict]
