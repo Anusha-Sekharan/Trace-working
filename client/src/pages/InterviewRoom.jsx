@@ -14,6 +14,9 @@ const InterviewRoom = () => {
     const [inputText, setInputText] = useState("");
     const [vibe, setVibe] = useState({ score: 88, feedback: "Ready to start" });
     const [isEnding, setIsEnding] = useState(false);
+    const [isEnded, setIsEnded] = useState(false);
+    const [finalScore, setFinalScore] = useState(null);
+    const [learningPath, setLearningPath] = useState(null);
 
     const handleSendMessage = async () => {
         if (!inputText) return;
@@ -52,7 +55,12 @@ const InterviewRoom = () => {
                 body: JSON.stringify({ role: "Software Engineer", history: messages })
             });
             if (res.ok) {
-                navigate('/dashboard');
+                const data = await res.json();
+                setFinalScore(data.ai_score);
+                if (data.learning_path) {
+                    setLearningPath(JSON.parse(data.learning_path));
+                }
+                setIsEnded(true);
             } else {
                 alert("Failed to evaluate interview.");
             }
@@ -85,7 +93,53 @@ const InterviewRoom = () => {
                 </div>
             </div>
 
-            <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
+            {isEnded ? (
+                <div className="flex-1 overflow-y-auto w-full max-w-4xl mx-auto pb-20">
+                    <div className="text-center py-8 space-y-6">
+                        <div className="inline-block bg-white/5 px-8 py-4 rounded-2xl border border-white/10 mb-2">
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Interview Score</p>
+                            <div className="text-5xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                                {finalScore || 0}
+                            </div>
+                        </div>
+                    </div>
+
+                    {learningPath && (
+                        <div className="text-left w-full mb-8 bg-black/40 p-8 rounded-2xl border border-cyan-500/20 shadow-xl shadow-cyan-500/5">
+                            <h4 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                                <div className="p-2 bg-cyan-500/20 rounded-lg"><Code2 className="w-6 h-6 text-cyan-400" /></div> Recommended Learning Path
+                            </h4>
+                            <div className="grid gap-4">
+                                {learningPath.map((step, i) => (
+                                    <div key={i} className="bg-white/5 p-6 rounded-xl border border-white/10 relative overflow-hidden group hover:bg-white/10 transition-colors">
+                                        <div className="absolute left-0 top-0 w-1.5 h-full bg-cyan-500 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                                        <div className="flex gap-6 items-start">
+                                            <div className="font-mono text-cyan-400 font-black text-2xl mt-1">0{i + 1}</div>
+                                            <div className="flex-1">
+                                                <h5 className="font-bold text-white text-xl mb-2">{step.step}</h5>
+                                                <p className="text-sm text-gray-400 mb-4 leading-relaxed max-w-2xl">{step.why}</p>
+                                                <a href={step.resource} className="inline-flex items-center gap-2 text-xs uppercase tracking-wider font-bold bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded-lg hover:bg-cyan-500/30 transition-colors" target="_blank" rel="noreferrer">
+                                                    View Recommended Resource
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className="text-center">
+                        <button 
+                            onClick={() => navigate('/dashboard')} 
+                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-4 px-10 rounded-xl transition-all shadow-lg shadow-cyan-500/20 inline-flex items-center gap-2"
+                        >
+                            Return to Dashboard
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
                 {/* Left: Chat/Instructions */}
                 <div className="col-span-1 glass-panel flex flex-col">
                     <div className="p-4 border-b border-white/10 bg-white/5">
@@ -164,6 +218,7 @@ const InterviewRoom = () => {
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 };
