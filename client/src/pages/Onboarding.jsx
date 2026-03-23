@@ -70,7 +70,7 @@ const Onboarding = () => {
             if (role.trim() !== '') {
                 setShowAssessment(true);
             } else {
-                navigate('/search'); // Go to Dashboard
+                navigate('/dashboard'); // Go to Dashboard
             }
 
         } catch (err) {
@@ -84,7 +84,7 @@ const Onboarding = () => {
         if (updateUser) {
             updateUser(updatedUser);
         }
-        navigate('/search');
+        navigate('/dashboard');
     };
 
     if (showAssessment) {
