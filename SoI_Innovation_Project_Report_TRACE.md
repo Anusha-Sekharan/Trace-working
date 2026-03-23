@@ -187,13 +187,22 @@ We believed that students would reduce team-formation time by 80% using TRACE’
 **Current-state handover summary**
 The TRACE MVP v2 is fully functional on local environments. The Team Builder accurately suggests full candidate profiles. Mock Interviews generate real-time feedback and actionable 3-step learning paths. 
 
-**Backlog for continuation**
+**Backlog for continuation or pivot**
 
-| Priority | Next task / experiment | Est. effort |
-| :--- | :--- | :--- |
-| **High** | Containerize the backend and deploy to a cloud GPU instance for public access. | 1.5 weeks |
-| **High** | Implement a secure Docker-based code execution sandbox for the Interview Room. | 2 weeks |
-| **Medium** | Add faculty-facing dashboards for course-level analytics. | 1 week |
+| Priority | Next task / experiment | Why this matters next | Owner / suggested role | Est. effort |
+| :--- | :--- | :--- | :--- | :--- |
+| **High** | Containerize the backend and deploy to a cloud GPU instance | Needed to transition from local prototype to public pilot testing | DevOps / Systems lead | 1.5 weeks |
+| **High** | Implement a secure Docker-based code execution sandbox | Allows real code compilation during AI interviews, improving evaluation accuracy | Backend lead | 2 weeks |
+| **Medium** | Build a faculty-facing analytics dashboard | Helps professors monitor team formations and track student skill gaps | Full-stack lead | 1 week |
+| **Medium** | Run an A/B test on Interview Room difficulty scaling | Ensures the LLM isn't too harsh or too forgiving for beginners | AI / Research lead | 3 days |
+| **Low** | Expand GitHub analysis to include commit frequency charts | Provides nicer visuals for recruiters viewing candidate profiles | Frontend lead | 4 days |
+
+**Next validation experiments**
+
+| Hypothesis / next question | Method | Success threshold | Resources needed | Timeline |
+| :--- | :--- | :--- | :--- | :--- |
+| Faculty will trust AI-generated teams for capstone projects | Pilot TRACE in one real university capstone course to form 10 teams | Teams rate their final synergy ≥ 8/10; Professor accepts 100% of teams | 1 Professor, 40 students, deployed server access | 3 weeks |
+| Real-time code compilation improves AI grading accuracy | A/B test AI grading simulated code vs. actual Sandbox-compiled code | Score variance between human grader and AI drops to ≤ 5% | 20 mock interview transcripts, Docker sandbox | 2 weeks |
 
 ---
 
