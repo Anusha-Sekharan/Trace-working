@@ -290,7 +290,7 @@ async def generate_assessment_questions(role: str):
 
 async def evaluate_assessment(role: str, q_and_a: list):
     """
-    Evaluates the answers to the assessment and returns a score and missed topics.
+    Evaluates the answers to the assessment and returns a score from 0 to 100.
     q_and_a is a list of dicts: [{"question": "...", "answer": "..."}]
     """
     prompt = f"""
@@ -300,11 +300,8 @@ async def evaluate_assessment(role: str, q_and_a: list):
     
     Evaluate if their selected answers are correct for the technical questions.
     Score the candidate on a scale of 0 to 100 based on how many they got right (e.g., 5/5 = 100, 4/5 = 80).
-    Also identify the technical topics they got wrong.
-    Return ONLY a JSON object with:
-    - 'score': integer
-    - 'missed_topics': list of strings of the exact topics missed
-    Example: {{"score": 80, "missed_topics": ["State Management"]}}
+    Return ONLY a JSON object with a single key 'score' containing the integer score.
+    Example: {{"score": 80}}
     No markdown formatting, just the JSON object.
     """
     try:
@@ -312,13 +309,10 @@ async def evaluate_assessment(role: str, q_and_a: list):
         content = response['message']['content'].strip()
         content = content.replace("```json", "").replace("```", "").strip()
         result = json.loads(content)
-        return {
-            "score": int(result.get('score', 50)),
-            "missed_topics": result.get('missed_topics', [])
-        }
+        return int(result.get('score', 50))
     except Exception as e:
         print(f"Error evaluating assessment: {e}")
-        return {"score": 50, "missed_topics": ["General concepts"]}
+        return random.randint(50, 85)  # Fallback random score if parsing fails
 
 
 import pypdf

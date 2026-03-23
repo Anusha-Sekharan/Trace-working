@@ -26,6 +26,9 @@ const Navbar = () => {
                     <Link to="/search" className="hover:text-primary transition-colors flex items-center gap-2">
                         <Users className="w-4 h-4" /> Find Teams
                     </Link>
+                    <Link to="/team-builder" className="hover:text-secondary transition-colors flex items-center gap-2">
+                        <Users className="w-4 h-4 text-secondary" /> Build Team
+                    </Link>
                     <Link to="/verify" className="hover:text-primary transition-colors flex items-center gap-2">
                         <Shield className="w-4 h-4" /> Verify Skills
                     </Link>
